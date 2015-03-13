@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:ControlPanel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:ui="weave.ui.*" 
+				  >
+	<fx:Script>
+		<![CDATA[
+			import weave.api.linkBindableProperty;
+			import weave.api.registerDisposableChild;
+			import weave.api.registerLinkableChild;
+			import weave.api.unlinkBindableProperty;
+			import weave.api.core.ILinkableVariable;
+			import weave.compiler.StandardLib;
+			import weave.core.LinkableString;
+			import weave.core.LinkableVariable;
+			import weave.core.LinkableWatcher;
+			import weave.ui.DraggablePanel;
+			
+			
+			
+			public static var instance:TextEditor;
+			
+			public static function openTool():void
+			{
+				instance = DraggablePanel.openStaticInstance(TextEditor);				
+			}
+			
+			public static function closeTool():void
+			{
+				if(instance)
+					instance.removePanel()	;			
+			}
+			
+			
+			public function bind(text:LinkableString):void{
+				
+				var path:Array = WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap, text);
+				targetPath.setSessionState(path);
+			}
+			
+			private function verifyPath(path:Array):Boolean
+			{
+				return !path || StandardLib.getArrayType(path) == String;
+			} 
+			
+			
+			public const targetPath:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array, verifyPath), handlePath);
+			private const watcher:LinkableWatcher = registerDisposableChild(this, new LinkableWatcher(ILinkableVariable));
+			
+			
+			private function handlePath():void
+			{
+				if(watcher.target){
+					unlinkBindableProperty(watcher.target as ILinkableVariable,editor,'htmlText');
+				}
+				
+				watcher.targetPath = targetPath.getSessionState() as Array;
+				linkBindableProperty(watcher.target as ILinkableVariable,editor,'htmlText');
+				
+			}
+			
+			
+			
+		]]>
+	</fx:Script>
+		
+					
+			<mx:RichTextEditor id="editor" width="100%" height="100%"  />
+	
+</ui:ControlPanel>

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ui="weave.ui.*"
+					label="{lang('Menu')}" textAlign="right" creationPolicy="all">
+	<s:layout>
+		<s:FormLayout gap="-10"/>
+	</s:layout>
+	
+	<s:FormItem label="{lang('Menu font:')}">
+		<ui:FontControl id="menuFontControl" />	
+	</s:FormItem>
+	
+	<s:FormItem label="{lang('Color')}" >
+		<s:HGroup>
+			<ui:CustomColorPicker id="menuButtonColorPicker" change="menuButtonColorPicked();"/>
+			<s:Button label="{lang('Reset')}" click="EHS.properties.menuButtonSettings.menuButtonColor.value = 0x36373b;"/>
+		</s:HGroup>		
+	</s:FormItem>
+	
+	<s:FormItem label="{lang('Selected State')}">
+		<s:HGroup>
+			<ui:CustomColorPicker id="selectedStateColorPicker" change="selectedStateColorPicked();"/>
+			<s:Button label="{lang('Reset')}" click="EHS.properties.menuButtonSettings.menuButtonSelectedStateColor.value = 0x202425;"/>
+		</s:HGroup>		
+	</s:FormItem>
+	
+	<s:FormItem label="{lang('Roll Over State')}" >
+		<s:HGroup>
+			<ui:CustomColorPicker id="overStateColorPicker" change="overStateColorPicked();"/>
+			<s:Button label="{lang('Reset')}" click="EHS.properties.menuButtonSettings.menuButtonOverStateColor.value = 0x202425;"/>
+		</s:HGroup>		
+	</s:FormItem>
+	
+	
+	
+	
+	
+	<!--<s:FormItem label="{lang('Font Size')}">
+		<s:HGroup>
+			<s:NumericStepper id="fontSizeStepper" change="fontSizeSet();" minimum="8" maximum="24"/>
+			<s:Button label="{lang('Reset')}" click="_panel.menuButtonSettings.menuButtonFontSize.value = 14;"/>
+		</s:HGroup>		
+	</s:FormItem>
+	
+	<s:FormItem label="{lang('Font Color')}">
+		<s:HGroup>
+			<ui:CustomColorPicker id="fontColorPicker" change="fontColorPicked();"/>
+			<s:Button label="{lang('Reset')}" click="_panel.menuButtonSettings.menuButtonFontColor.value = 0xffffff;"/>
+		</s:HGroup>	
+	</s:FormItem>-->
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			
+			import ehs.EHS;
+			import ehs.EHSTool;
+			
+			import weave.api.getCallbackCollection;
+			
+			[Bindable]
+			private var _panel:EHSTool = null;
+			
+			private function labelShowButton(buttonToolTip:String):String{
+				return lang('Show button "{0}"', lang(buttonToolTip));
+			}
+			
+			override protected function createChildren():void{
+				super.createChildren();
+				menuFontControl.initialize();
+				
+			}
+			
+			public function set target(panel:EHSTool):void{
+				if (_panel)
+					throw new Error(lang("target should not be set more than once"));
+				
+				_panel = panel;
+			}
+			override protected function childrenCreated():void
+			{
+				super.childrenCreated();				
+				getCallbackCollection(EHS.properties.menuButtonSettings).addGroupedCallback(this, menuButtonSettingsCallback,true);
+				_panel.addEventListener(FlexEvent.UPDATE_COMPLETE, function(..._):void { menuButtonSettingsCallback(); });
+				
+				menuFontControl.fontFamilyCombo.selectedLabel = EHS.properties.menuButtonSettings.menuTextFormat.font.value;
+				
+				menuFontControl.setTarget(EHS.properties.menuButtonSettings.menuTextFormat);
+			}
+			
+			private function menuButtonSettingsCallback():void{
+				if(menuButtonColorPicker.selectedColor != EHS.properties.menuButtonSettings.menuButtonColor.value){
+					menuButtonColorPicker.selectedColor = EHS.properties.menuButtonSettings.menuButtonColor.value;
+				}
+				if(selectedStateColorPicker.selectedColor != EHS.properties.menuButtonSettings.menuButtonSelectedStateColor.value){
+					selectedStateColorPicker.selectedColor = EHS.properties.menuButtonSettings.menuButtonSelectedStateColor.value;
+				}
+				if(overStateColorPicker.selectedColor != EHS.properties.menuButtonSettings.menuButtonOverStateColor.value){
+					overStateColorPicker.selectedColor = EHS.properties.menuButtonSettings.menuButtonOverStateColor.value;
+				}
+				/*if(fontSizeStepper.value != _panel.menuButtonSettings.menuButtonFontSize.value){
+					fontSizeStepper.value = _panel.menuButtonSettings.menuButtonFontSize.value;
+				}
+				if(fontColorPicker.selectedColor != _panel.menuButtonSettings.menuButtonFontColor.value){
+					fontColorPicker.selectedColor = _panel.menuButtonSettings.menuButtonFontColor.value;
+				}*/
+				
+			}
+			private function menuButtonColorPicked():void{
+				EHS.properties.menuButtonSettings.menuButtonColor.value = menuButtonColorPicker.selectedColor;
+			}
+			
+			private function selectedStateColorPicked():void{
+				EHS.properties.menuButtonSettings.menuButtonSelectedStateColor.value = selectedStateColorPicker.selectedColor;
+			}
+			
+			private function overStateColorPicked():void{
+				EHS.properties.menuButtonSettings.menuButtonOverStateColor.value = overStateColorPicker.selectedColor;
+			}
+			/*private function fontSizeSet():void{
+				_panel.menuButtonSettings.menuButtonFontSize.value = fontSizeStepper.value;
+			}
+			private function fontColorPicked():void{
+				_panel.menuButtonSettings.menuButtonFontColor.value = fontColorPicker.selectedColor;
+			}*/
+			
+			
+		]]>
+	</fx:Script>
+	
+</s:NavigatorContent>

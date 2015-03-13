@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:ui="ehs.ui.*"
+		  width="100%" height="100%"
+		  implements="weave.api.core.ILinkableObject"
+		  autoDrawBackground="false">
+	
+	<!--<s:Rect left="0" right="0" top="0" bottom="0">
+		<s:fill>
+			<s:SolidColor  color="0xff0000"/>
+		</s:fill>
+	</s:Rect>-->
+	
+	<fx:Script>
+		<![CDATA[
+			import ehs.data.InspectionData;
+			
+			import weave.api.linkBindableProperty;
+			
+					
+			[Bindable]
+			public var questionNumber:int;
+			
+			
+			public var sectionName:String = "";
+			
+			
+			
+			private var _displayObject:DisplayObject = null;
+		
+			
+			private var _sessionData:InspectionData;
+			private function get SessionData():InspectionData{
+				
+				return _sessionData;
+			}
+			
+			override public function set data(value:Object):void
+			{
+				super.data = value;
+				if(value){
+					linkBindableProperty((value as InspectionData).question,questionEdit,'text');
+					linkBindableProperty((value as InspectionData).comment,commentEdit,'text');		
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	
+	
+	
+	
+	<s:VGroup gap="12" id="editMode" width="100%"  verticalAlign="middle">		
+		<s:HGroup width="100%">
+			<s:Label  text="{String(questionNumber)}. " fontSize="14"/>
+			<s:VGroup gap="12" width="100%"  verticalAlign="middle">	
+				<s:RichEditableText id="questionEdit" fontSize="14" width="100%"/>
+				<s:RichEditableText id="commentEdit"  fontSize="14" width="100%"   />
+			</s:VGroup>
+		</s:HGroup>	
+		
+	</s:VGroup>
+	
+</s:ItemRenderer>

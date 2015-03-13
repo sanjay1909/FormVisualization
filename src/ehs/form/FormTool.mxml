@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ehs:EHSTool xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			 xmlns:s="library://ns.adobe.com/flex/spark" 
+			 xmlns:mx="library://ns.adobe.com/flex/mx" 
+			 xmlns:ehs="ehs.*" 
+			 xmlns:ehsUi="ehs.ui.*" 
+			 xmlns:ui="weave.ui.*" 
+			 xmlns:editors="ehs.ui.editors.*"
+			 implements="weave.api.ui.IVisTool,weave.api.core.ILinkableObject,">
+	<ehsUi:CustomPanel id="formPanel" left="10" right="10" bottom="10" top="10" creationPolicy="all"  />
+	<fx:Script>
+		<![CDATA[
+			import mx.core.IVisualElement;
+			
+			import ehs.EHS;
+			import ehs.data.SurveySection;
+			
+			import weave.api.newLinkableChild;
+			import weave.api.registerLinkableChild;
+			import weave.api.core.ILinkableObject;
+			import weave.api.ui.ILinkableLayoutManager;
+			import weave.api.ui.IVisTool;
+			import weave.core.LinkableString;
+			import weave.core.UIUtils;
+			import weave.data.DataSources.CSVDataSource;
+			import weave.ui.TabLinkableLayoutManager;
+			
+			WeaveAPI.ClassRegistry.registerImplementation(IVisTool, FormTool, "Form Tool");
+			
+			internal function get plotter():FormRenderer { return plotManager.renderer; }
+			
+			public const plotManager:RenderManager = newLinkableChild(this, RenderManager);
+			public const currentPage:LinkableString = registerLinkableChild(this, new LinkableString());
+			public const layoutMode:LinkableString = registerLinkableChild(this, new LinkableString("tab"));
+			private var manager:ILinkableLayoutManager;
+			
+			/**
+			 * A constructor cannot be defined in MXML.
+			 * This function gets called as a result of calling the super class's constructor.
+			 * Classes that extend DraggablePanel can override this and call super.inConstructor().
+			 * Any code that should execute in the constructor can be put into this function.
+			 * This function should not be called directly.
+			 */
+			override protected function inConstructor():void
+			{
+				super.inConstructor();
+				
+				//formPlotter.sections.childListCallbacks.addGroupedCallback(this,createSectionUI);
+				currentPage.addImmediateCallback(this,openSection,true);
+				loadDefaultCSV();
+			}
+			
+			override protected function createChildren():void{					
+				super.createChildren();
+				
+				manager = newLinkableChild(this, TabLinkableLayoutManager);				
+				
+				formPanel.addElement(manager as IVisualElement);
+				panelTitle.value = "Form Tool";
+				
+				
+				UIUtils.linkLayoutManager(manager,plotManager.surveySectionUIs);
+				(manager as TabLinkableLayoutManager).activeSection = currentPage;
+				(manager as TabLinkableLayoutManager).layoutMode = layoutMode;
+				
+			}
+			
+			private function openSection():void{
+				if(currentPage.value){
+					var	sectionName:String = currentPage.value;
+					var sec:SurveySection = plotManager.sections.requestObject(sectionName,SurveySection,false);
+					plotManager.renderer.renderAll(sectionName,sec.checklist);
+					//sec.sectionData.structure = {comment:"Hi", images:null};
+					//sec.secData.value = {comment:"Hi", images:null};
+					
+				}
+				
+			}
+			
+			
+			
+			// later give user the option to load CSV and design the UI based on that
+			[Embed(source="/../ehs/testSource.txt",mimeType="application/octet-stream")]
+			private var csvSource:Class;				
+			private var csvAsBytes:ByteArray;				
+			public function loadDefaultCSV():void{
+				if(!csvAsBytes){
+					csvAsBytes = new csvSource();
+				}
+				var arr:Array = WeaveAPI.CSVParser.parseCSV(csvAsBytes.readUTFBytes(csvAsBytes.length));
+				
+				formHeaders = WeaveAPI.CSVParser.getRecordFieldNames(arr);				
+				
+				csvDataSource = EHS.dataSource;
+				csvDataSource.keyColName.value = 'key';
+				// set the sessionstae after setiing the Keytype and keycolumn name else it will trigger twice
+				csvDataSource.csvData.setSessionState(arr);
+				
+				
+				trace('CSV Data - Set');
+				hardCodeMetaData();
+			
+				
+			}
+			
+			private var csvDataSource:CSVDataSource = null;
+			private var formHeaders:Array = null;
+			
+			private function hardCodeMetaData():void{
+				
+				trace('CSV sectionColumn - put');
+				csvDataSource.putColumn(1,plotManager.renderer.sectionColumn);
+				trace('CSV questionColumn - put');
+				//csvDataSource.putColumn(2,plotManager.renderer.questionColumn);
+				//csvDataSource.putColumn(3,formPlotter.answerColumn);
+				//csvDataSource.putColumn(4,formPlotter.answerTypeColumn);
+				//csvDataSource.putColumn(5,formPlotter.dependentColumn);
+			}
+			
+			
+			
+			
+		]]>
+	</fx:Script>
+	<ehs:editorFactory>
+		<fx:Component>
+			<ui:ControlPanel>
+				<fx:Script>
+					<![CDATA[
+						import mx.collections.ArrayCollection;
+						
+						import ehs.EHSTool;
+						import ehs.form.FormRenderer;
+						
+						import weave.api.linkBindableProperty;
+						
+						[Bindable]
+						public var layoutData:ArrayCollection = new ArrayCollection(['tab','wizard','tile']);
+						
+						override protected function childrenCreated():void
+						{
+							super.childrenCreated();
+							
+							
+							
+							var surPlotter:FormRenderer = (outerDocument.plotter as FormRenderer);
+							surPlotter.sectionColumn.addGroupedCallback(this, handleSectionColumnChange, true);
+						}
+						
+						private function handleSectionColumnChange():void
+						{
+							if (!parent)
+								return callLater(handleSectionColumnChange);
+							
+							
+							
+							binEditor.setTarget(outerDocument.plotter.binnedSection);
+							dataColumnComponent.dynamicObject = outerDocument.plotter.sectionColumn;
+						}
+						
+					]]>
+				</fx:Script>
+				<s:NavigatorContent label="{lang('Basic')}">
+					<s:layout>
+						<s:VerticalLayout/>
+					</s:layout>
+					<ui:DynamicColumnComponent id="dataColumnComponent" label="{lang('Section')}"/>
+					<ui:BinningDefinitionEditor id="binEditor"/>
+					
+				</s:NavigatorContent>
+				<s:NavigatorContent label="{lang('Form')}">
+					<s:layout>
+						<s:FormLayout/>
+					</s:layout>
+					<s:Form>
+						<s:FormItem label="Layout">
+							<s:DropDownList dataProvider="{layoutData}" creationComplete="linkBindableProperty(outerDocument.layoutMode,event.target,'selectedItem');" />							
+						</s:FormItem>
+						
+					</s:Form>
+				</s:NavigatorContent>
+				
+				<editors:ToolSettingsEditor id="toolEditor" width="100%" creationComplete="toolEditor.setTarget(outerDocument as EHSTool)"/>
+				
+			</ui:ControlPanel>
+		</fx:Component>
+	</ehs:editorFactory>
+		
+	
+</ehs:EHSTool>

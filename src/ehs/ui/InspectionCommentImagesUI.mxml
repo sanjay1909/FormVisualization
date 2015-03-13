@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 implements="ehs.ui.ICommentAndImageUI,mx.managers.IFocusManagerComponent"
+		 width="100%" height="100%" >
+	<fx:Script>
+		<![CDATA[
+			import weave.api.linkBindableProperty;
+			import weave.api.registerLinkableChild;
+			import weave.api.reportError;
+			import weave.compiler.StandardLib;
+			import weave.core.LinkableHashMap;
+			import weave.core.LinkableString;
+			import weave.core.LinkableVariable;
+			import weave.core.LinkableWatcher;
+			import weave.ui.BusyIndicator;
+			
+			private var _constructorCalled:Boolean = false; // true when constructor has been called
+			override protected function resourcesChanged():void
+			{
+				super.resourcesChanged();
+				if (!_constructorCalled) // avoid calling constructor twice
+				{
+					_constructorCalled = true;
+					constructor();
+				}
+			}
+			
+			/**
+			 * A constructor cannot be defined in MXML.
+			 * This function gets called as a result of calling the super class's constructor.
+			 * Classes that extend DraggablePanel can override this and call super.constructor().
+			 * Any code that should execute in the constructor can be put into this function.
+			 * This function should not be called directly.
+			 */
+			protected function constructor():void
+			{
+				hasFocusableChildren = false;	
+				_fileLoader.addEventListener(Event.SELECT, loadFiles  );
+				_fileLoader.addEventListener(ProgressEvent.PROGRESS, handleProgress);
+				_fileLoader.addEventListener(Event.COMPLETE, sendToLoader );	
+				_fileLoader.addEventListener(IOErrorEvent.IO_ERROR, fileErrorHandler);
+			}
+			
+			override protected function childrenCreated():void{
+				super.childrenCreated();
+			}
+			
+			public function load(comment:LinkableString,images:LinkableHashMap):void{
+				var path:Array = WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap, comment);
+				commentTargetPath.setSessionState(path);
+				
+				path = WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap, images);
+				imagesTargetPath.setSessionState(path);
+				if(images)
+					imagesChildListWatcher.target = images.childListCallbacks;
+				else
+					imagesChildListWatcher.dispose();
+			}
+			
+			
+			
+			
+			//Comment Watcher
+			//
+			//
+			// - Settings
+			public const commentTargetPath:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array, verifyCommentPath), handleCommentPath);
+			private const commentWatcher:LinkableWatcher = registerLinkableChild(this, new LinkableWatcher());
+			private function verifyCommentPath(path:Array):Boolean
+			{
+				return !path || StandardLib.getArrayType(path) == String;
+			} 
+			
+			private function handleCommentPath():void
+			{
+				commentWatcher.targetPath = commentTargetPath.getSessionState() as Array;
+				var comment:LinkableString = commentWatcher.target as LinkableString;
+				if(comment)
+					linkBindableProperty(comment,commentUI,"text");
+			}
+			
+						
+			//Images Watcher
+			//
+			//
+			// - Settings			
+			public const imagesTargetPath:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array, verifyImagesPath), handleImagesPath);
+			private const imagesWatcher:LinkableWatcher = registerLinkableChild(this, new LinkableWatcher(LinkableHashMap));
+			
+			private function verifyImagesPath(path:Array):Boolean
+			{
+				return !path || StandardLib.getArrayType(path) == String;
+			} 
+			//called when path for sessioned data changes
+			private function handleImagesPath():void
+			{
+				if(imgContainer)
+					imgContainer.removeAllElements();
+				bytesImageUI = new Dictionary(true);
+				imagesWatcher.targetPath = imagesTargetPath.getSessionState() as Array;
+				loadSessionedImages();
+			}
+			
+			
+			
+			private var bytesImageUI:Dictionary;
+			
+			private function loadSessionedImages():void
+			{				
+				var _images:LinkableHashMap = imagesWatcher.target as LinkableHashMap;
+				if(_images){
+					var arr:Array = _images.getNames();
+					for(var i:int = 0; i < arr.length;i++){
+						var imgUI:ReportImage = new ReportImage();
+						var imageUrl:String = (_images.getObject(arr[i]) as LinkableString).value;
+						if (imageUrl) // only request image if not already requested
+						{
+							var imgURLObject:LinkableString =  _images.getObject(arr[i]) as LinkableString;
+							imgUI.imageUrl = imgURLObject
+							imgURLObject.triggerCallbacks();
+							imgContainer.addElement(imgUI);
+							bytesImageUI[_images.getObject(arr[i])] = imgUI;						
+						}
+					}
+				}
+				
+				
+			}
+			
+			private const imagesChildListWatcher:LinkableWatcher = registerLinkableChild(this, new LinkableWatcher(null,mapImageUI));
+			
+			private function mapImageUI():void{
+				var _images:LinkableHashMap = imagesWatcher.target as LinkableHashMap;
+				// ite imprtant as callback of watcher are called at its disposal
+				if(_images){
+					if(_images.childListCallbacks.lastObjectAdded){
+						var imgUI:ReportImage = new ReportImage();					
+						imgUI.imageUrl = _images.childListCallbacks.lastObjectAdded as LinkableString;
+						imgContainer.addElement(imgUI);
+						bytesImageUI[_images.childListCallbacks.lastObjectAdded] = imgUI;
+					}
+					else if(_images.childListCallbacks.lastObjectRemoved){
+						if(bytesImageUI){// dispose  functions, thsi will be null
+							var imageUI:ReportImage = bytesImageUI[_images.childListCallbacks.lastObjectRemoved];
+							imgContainer.removeElement(imageUI);
+							delete  bytesImageUI[_images.childListCallbacks.lastObjectRemoved];
+						}
+					}
+				}
+				
+			
+				
+			}
+			
+			
+			private var busyIndicator:BusyIndicator = new BusyIndicator();
+			private var _fileLoader:FileReference  = new FileReference();;
+			
+			protected function addImage_clickHandler(event:MouseEvent):void
+			{
+				_fileLoader.browse([new FileFilter("Images", ".gif;*.jpeg;*.jpg;*.png")]);	
+			}
+			
+			private function loadFiles(e:Event):void { 
+				_fileLoader = e.currentTarget as FileReference;
+				_fileLoader.load();
+				WeaveAPI.ProgressIndicator.addTask(_fileLoader);
+			}
+			
+			private function handleProgress(event:ProgressEvent):void
+			{
+				WeaveAPI.ProgressIndicator.updateTask(_fileLoader, event.bytesLoaded / event.bytesTotal);
+			}
+			
+			public function sendToLoader(e:Event):void
+			{
+				var _images:LinkableHashMap = imagesWatcher.target as LinkableHashMap;
+				var url:String = WeaveAPI.URLRequestUtils.saveLocalFile(_fileLoader.name, _fileLoader.data);				
+				var imgUrl:LinkableString  = _images.requestObject("",LinkableString,false);	
+				imgUrl.value = url;
+				
+				busyIndicator.visible = false;
+				WeaveAPI.ProgressIndicator.removeTask(_fileLoader);
+				
+				if (_fileLoader.data == null)
+				{
+					busyIndicator.visible = false;
+					return;
+				}
+			}
+			
+			private function fileErrorHandler(event:IOErrorEvent):void
+			{
+				busyIndicator.visible = false;
+				var fileRef:FileReference = event.target as FileReference;
+				reportError(
+					"File upload failed",
+					"File: " + fileRef.name + "\n" + "Size: " + fileRef.size + "\n" + event.text
+				);
+			}
+		]]>
+	</fx:Script>
+	<s:Form width="100%" height="100%" creationPolicy="all">		
+		<s:FormItem label="Comment" id="expTxtArea" fontSize="14">
+			<s:TextArea id="commentUI" width="100%" focusEnabled="false"    />
+		</s:FormItem>
+		<s:FormItem label="Image" fontSize="14">
+			<s:HGroup>
+				<s:Button label="Add Image" click="addImage_clickHandler(event)" focusEnabled="false"/>				
+				<!--<mx:Label color="blue" text="(Two Image fits if the summation of width remains less than 480.)"/>-->
+			</s:HGroup>
+		</s:FormItem>
+		<s:Scroller horizontalScrollPolicy="off" width="100%" height="100%" focusEnabled="false" >
+			
+			<s:Group id="imgContainer" width="100%" height="100%" >
+				
+				<s:layout>
+					<s:TileLayout horizontalAlign="center" useVirtualLayout="true" />
+				</s:layout>							
+			</s:Group>
+		</s:Scroller>
+	</s:Form>	
+</s:Group>

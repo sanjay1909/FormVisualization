@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Callout xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"			   
+		   creationPolicy="all" 
+		   implements="ehs.ui.ICommentAndImageUI,mx.managers.IFocusManagerComponent,weave.api.core.IDisposableObject"  
+		   xmlns:ui="ehs.ui.*" width="{calloutWidth}" xmlns:sessioned="ehs.ui.sessioned.*" height="100%"
+		   >
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			
+			import spark.components.DataGroup;
+			import spark.events.IndexChangeEvent;
+			
+			import ehs.EHS;
+			import ehs.EHSProperties;
+			import ehs.data.FollowUpData;
+			import ehs.data.InspectionData;
+			
+			import weave.api.getLinkableOwner;
+			import weave.api.registerLinkableChild;
+			import weave.api.core.ILinkableHashMap;
+			import weave.application.VisApp;
+			import weave.compiler.StandardLib;
+			import weave.core.LinkableHashMap;
+			import weave.core.LinkableVariable;
+			import weave.core.LinkableWatcher;
+			import weave.core.SessionManager;
+			import weave.core.StageUtils;
+			
+			
+			private var _constructorCalled:Boolean = false; // true when constructor has been called
+			override protected function resourcesChanged():void
+			{
+				super.resourcesChanged();
+				if (!_constructorCalled) // avoid calling constructor twice
+				{
+					_constructorCalled = true;
+					constructor();
+				}
+			}
+			
+			/**
+			 * A constructor cannot be defined in MXML.
+			 * This function gets called as a result of calling the super class's constructor.
+			 * Classes that extend DraggablePanel can override this and call super.constructor().
+			 * Any code that should execute in the constructor can be put into this function.
+			 * This function should not be called directly.
+			 */
+			protected function constructor():void
+			{
+				hasFocusableChildren = false;				
+			}
+			[Bindable]
+			public var calloutWidth:Number = 800;
+			
+			override protected function childrenCreated():void{
+				super.childrenCreated();
+				skin.addEventListener(FlexEvent.STATE_CHANGE_COMPLETE,callout1_stateChangeCompleteHandler,false,-1);
+			}
+			
+			public function dispose():void{
+				activeFollowUpPathWatcher.dispose();
+				followUpsWatcher.dispose();
+				followUpsChildListWatcher.dispose();
+			}
+			
+			private function updateFollowUpUI():void{
+				if(EHS.properties.mode.value == EHSProperties.FOLLOWUP){
+					followUpHolder.visible = followUpHolder.includeInLayout = true;
+				}else if(EHS.properties.mode.value == EHSProperties.INSPECTION){
+					followUpHolder.visible = followUpHolder.includeInLayout = false;
+				}
+			}
+			private var openInitiated:Boolean = true;
+			protected function callout1_stateChangeCompleteHandler(event:FlexEvent):void
+			{
+				if(openInitiated){
+					openInitiated= false;
+					openSelectedDataUI();
+				}				
+			}
+			private function openSelectedDataUI():void{
+				var data:InspectionData = getData();
+				if(data){
+					var dataUI:FormDataRenderer = getUI(data);
+					WeaveAPI.StageUtils.addEventCallback(StageUtils.POINT_CLICK_EVENT, null, handleStagePointClick);
+					open(dataUI.noRB);
+					updateFollowUpUI();
+					
+				}
+				
+			}
+			
+			public function load(data:InspectionData):void{
+				
+				var path:Array = WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap, data  );
+				targetPath.setSessionState(path);
+				
+				path = WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap, data.followUps);
+				followUpsTargetPath.setSessionState(path);
+				
+			}
+			
+			private function verifyPath(path:Array):Boolean
+			{
+				return !path || StandardLib.getArrayType(path) == String;
+			} 
+			
+			//Comment Watcher
+			//
+			//
+			// - Settings
+			public const targetPath:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array, verifyPath), handlePath);
+			
+			
+			private function getUI(insData:InspectionData):FormDataRenderer{
+				// hack 
+				var sm:SessionManager = WeaveAPI.SessionManager as SessionManager;
+					var datas:LinkableHashMap = sm.getLinkableOwner(insData) as LinkableHashMap;
+					var insSecui:FormSectionUI = sm.getLinkableOwner(datas) as FormSectionUI;
+					var datagrp:DataGroup = insSecui.controller.view.dataGroup;
+					var dataName:String = datas.getName(insData);
+					
+					return datagrp.getChildByName(dataName) as FormDataRenderer;
+				
+				
+			}
+			
+			private function getData():InspectionData{
+				// hack 
+				var sm:SessionManager = WeaveAPI.SessionManager as SessionManager;
+				var targetPathArr:Array = targetPath.getSessionState() as Array;
+				if(targetPathArr){
+					var insData:InspectionData = sm.getObject(WeaveAPI.globalHashMap, targetPathArr) as InspectionData;
+					return sm.getObject(WeaveAPI.globalHashMap, targetPathArr) as InspectionData;
+				}
+				else return null;
+				
+			}
+			
+			private function handlePath():void
+			{
+				var insData:InspectionData = getData();
+				if(insData){
+					var dataUI:FormDataRenderer = getUI(insData);
+					if(dataUI){
+						if(skin && skin.currentState == "normal"){
+							close();
+							openInitiated = true;
+						}else{
+							WeaveAPI.StageUtils.addEventCallback(StageUtils.POINT_CLICK_EVENT, null, handleStagePointClick);
+							open(dataUI.noRB);	
+							updateFollowUpUI();
+						}
+						var arr:Array = activeFollowUpPath.getSessionState() as Array;
+						if(!arr){
+							activeFollowUpPath.setSessionState( WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap,getData()) );
+						}
+					}
+				}
+				else{
+					followUpsTargetPath.setSessionState(null);
+					activeFollowUpPath.setSessionState(null);
+					WeaveAPI.StageUtils.removeEventCallback(StageUtils.POINT_CLICK_EVENT,  handleStagePointClick);
+					close();
+				}
+				
+			}
+			
+			private function handleStagePointClick():void
+			{
+				var isVisDesKtopUnderPoint:Boolean = false;	
+				var data:InspectionData = getData();
+				
+				if(data){
+					var dataUI:FormDataRenderer = getUI(data);
+					var stage:Stage = (WeaveAPI.topLevelApplication as DisplayObject).stage;
+					var stagePoint:Point = new Point(stage.mouseX, stage.mouseY);
+					var objectsUnderPoint:Array = stage.getObjectsUnderPoint(stagePoint);					
+					var visDeskTop:DisplayObjectContainer = ((WeaveAPI.topLevelApplication).visApp as VisApp).visDesktop;
+					
+					for(var i:int = 0 ; i < objectsUnderPoint.length;i++){
+						if(!isVisDesKtopUnderPoint && visDeskTop == objectsUnderPoint[i])isVisDesKtopUnderPoint = true;
+						if(this == objectsUnderPoint[i] || (dataUI.noRB as UIComponent).contains(objectsUnderPoint[i]) || this.contains(objectsUnderPoint[i]) ){							
+							return;
+						}
+					}
+					if(isVisDesKtopUnderPoint){
+						targetPath.setSessionState(null);
+					}	
+				}
+			}
+			
+			[Bindable]
+			public var linkData:ArrayCollection = new ArrayCollection();
+			
+			public const activeFollowUpPath:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array, verifyPath),handleActiveFollowUp);
+			private const activeFollowUpPathWatcher:LinkableWatcher = registerLinkableChild(this, new LinkableWatcher());
+			
+			public const followUpsTargetPath:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array, verifyPath), handleFollowUpPath);
+			private const followUpsWatcher:LinkableWatcher = registerLinkableChild(this, new LinkableWatcher());
+			private const followUpsChildListWatcher:LinkableWatcher = registerLinkableChild(this, new LinkableWatcher(),updateMenu);
+			
+			private const followUpUIs:LinkableHashMap = registerLinkableChild(this, new LinkableHashMap(InspectionCommentImagesUI));
+			
+			private function handleFollowUpPath():void
+			{		
+				
+				followUpsWatcher.targetPath = followUpsTargetPath.getSessionState() as Array;
+				if(followUpsWatcher.target){					
+					followUpsChildListWatcher.target = (followUpsWatcher.target as LinkableHashMap).childListCallbacks;
+					var names:Array = (followUpsWatcher.target as LinkableHashMap).getNames();
+					linkData.source = names;
+					linkData.refresh();
+					if(activeFollowUpPathWatcher.target){
+						var name:String = (followUpsWatcher.target as LinkableHashMap).getName(activeFollowUpPathWatcher.target);
+						pageMenu.selectedItem = name;
+					}
+					
+				}					
+				else{
+					followUpsChildListWatcher.dispose();
+					linkData.removeAll();
+				}
+			}
+			
+			
+			//the session callabck depend son another sessioned object
+			// we need to wait for Followupscallback to complete
+			private function handleActiveFollowUp():void{
+				/*if(!followUpsWatcher.target){
+				callLater(handleActiveFollowUp);
+				return;
+				}*/
+				if(formSection)
+					formSection.removeAllElements();
+				activeFollowUpPathWatcher.targetPath = activeFollowUpPath.getSessionState() as Array;
+				if(activeFollowUpPathWatcher.target is FollowUpData){
+					var hm:LinkableHashMap = getLinkableOwner(activeFollowUpPathWatcher.target) as LinkableHashMap;
+					var name:String = hm.getName(activeFollowUpPathWatcher.target);
+					pageMenu.selectedItem = name;
+					var followUpUi:InspectionCommentImagesUI = followUpUIs.requestObject(name,InspectionCommentImagesUI,false);
+					formSection.addElement(followUpUi);
+					var fuData:FollowUpData =activeFollowUpPathWatcher.target as FollowUpData;
+					followUpUi.load(fuData.comment,fuData.images);
+				}
+				else if(activeFollowUpPathWatcher.target is InspectionData){
+					var ui:InspectionCommentImagesUI = followUpUIs.requestObject("Inspection",InspectionCommentImagesUI,false);
+					pageMenu.selectedItem = "Inspection";
+					formSection.addElement(ui);
+					var data:InspectionData =activeFollowUpPathWatcher.target as InspectionData;
+					ui.load(data.comment,data.images);
+				}
+				
+			}
+			
+			//sessioned object is updated here
+			protected function pageMenu_changeHandler(event:IndexChangeEvent):void
+			{				
+				var followUps:LinkableHashMap = followUpsWatcher.target as LinkableHashMap;
+				var followUp:FollowUpData = followUps.getObject(pageMenu.selectedItem as String) as FollowUpData;
+				activeFollowUpPath.setSessionState( WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap,followUp ));
+			}
+			
+			protected function addFollowUp_clickHandler(event:MouseEvent):void
+			{
+				var contents:ILinkableHashMap = followUpsWatcher.target as ILinkableHashMap;
+				contents.requestObject("Follow Up" + linkData.length ,FollowUpData,false);
+			}
+			
+			
+			private function updateMenu():void{
+				var followUps:ILinkableHashMap = followUpsWatcher.target as ILinkableHashMap;
+				if(followUps.childListCallbacks.lastNameAdded){					
+					linkData.addItem(followUps.childListCallbacks.lastNameAdded);
+					followUpUIs.requestObject(followUps.childListCallbacks.lastNameAdded,InspectionCommentImagesUI,false);
+				}
+				else if(followUps.childListCallbacks.lastNameRemoved){
+					linkData.removeItem(followUps.childListCallbacks.lastNameRemoved);
+					followUpUIs.removeObject(followUps.childListCallbacks.lastNameRemoved);
+				}
+				
+			}
+			
+			protected function defaultComment_clickHandler(event:MouseEvent ):void
+			{
+				
+				activeFollowUpPath.setSessionState( WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap,getData()) );
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:Group  width="100%" height="100%"  >
+		<s:Rect id="border" left="0" right="0" top="0" bottom="0" radiusX="4" radiusY="4">
+			<s:stroke>
+				<s:SolidColorStroke id="borderStroke" weight="1" color="0x00ff00"/>            
+			</s:stroke>
+		</s:Rect>
+		<s:VGroup left="2" right="2" top="2" bottom="2" id="followUpMode">
+			
+			<s:Group   width="100%"  id="followUpHolder" >
+				<s:HGroup left="4" right="4" >
+					<s:Button id="defaultComment" label="Inspection" name="Inspection" click="defaultComment_clickHandler(event)"/>
+					<s:ButtonBar id="pageMenu" dataProvider="{linkData}" change="pageMenu_changeHandler(event)" width="100%"/>	
+					<s:Button id="addFollowUp" width="32" label="+" click="addFollowUp_clickHandler(event)"/>
+					
+				</s:HGroup>
+				
+			</s:Group>
+			<s:Group  width="100%" height="100%"  >				
+				<s:Scroller left="4" right="4" top="4" bottom="4"
+							verticalScrollPolicy="auto" 
+							horizontalScrollPolicy="auto" >
+					<s:Group id="formSection"  height="100%" width="100%" minWidth="0" minHeight="0"  >
+						
+					</s:Group>
+				</s:Scroller>
+			</s:Group>
+			
+			<!--<sessioned:NavigatorSessioned id="commentImageHolder" width="100%" height="100%"/>-->
+			
+			<!--<sessioned:SessionedNavigator id="commentImageHolder" width="100%" height="100%"/>-->
+			
+		</s:VGroup>
+		
+		
+	</s:Group>
+	
+	<!--</s:Form>-->
+	
+	
+</s:Callout>

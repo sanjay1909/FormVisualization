@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:ui="ehs.ui.*" width="100%" height="100%"
+		  implements="ehs.ui.IInspectionUI"
+		 >
+	<!--<s:Rect left="0" right="0" top="0" bottom="0">
+		<s:fill>
+			<s:SolidColor  color="0xff0000"/>
+		</s:fill>
+	</s:Rect>-->
+	
+	<fx:Script>
+		<![CDATA[
+			import spark.components.Label;
+			
+			import ehs.EHS;
+			import ehs.data.InspectionData;
+			
+			import weave.api.getCallbackCollection;
+			import weave.api.linkBindableProperty;
+			import weave.api.registerLinkableChild;
+			import weave.api.setSessionState;
+			import weave.core.LinkableVariable;
+			import weave.utils.LinkableTextFormat;
+			
+					
+			public const inspectionData:InspectionData = registerLinkableChild(this, new InspectionData());
+			public const textFormat:LinkableTextFormat = registerLinkableChild(this, new LinkableTextFormat());
+			
+			
+			[Bindable]
+			public var questionNumber:int;
+			
+			protected const uiData:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Object),fillUi);
+			public function get data():LinkableVariable{
+				return uiData;
+			}
+			
+			public var sectionName:String = "";
+			
+			private var _constructorCalled:Boolean = false; // true when constructor has been called
+			/**
+			 *  This method is called when a UIComponent is constructed,
+			 *  and again whenever the ResourceManager dispatches
+			 *  a <code>"change"</code> Event to indicate
+			 *  that the localized resources have changed in some way.
+			 */
+			override protected function resourcesChanged():void
+			{
+				super.resourcesChanged();
+				if (!_constructorCalled) // avoid calling constructor twice
+				{
+					_constructorCalled = true;
+					constructor();
+				}
+			}
+			
+			private var _displayObject:DisplayObject = null;
+			/**
+			 * A constructor cannot be defined in MXML.
+			 * This function gets called as a result of calling the super class's constructor.
+			 * Classes that extend DraggablePanel can override this and call super.constructor().
+			 * Any code that should execute in the constructor can be put into this function.
+			 * This function should not be called directly.
+			 */
+			protected function constructor():void
+			{				
+				getCallbackCollection(EHS.properties.sectionSettings.checklistTextFormat).addImmediateCallback(this,changeFontProperties);
+				EHS.properties.editingMode.addGroupedCallback(this,handleEditing,true);
+			}
+			
+			
+			
+			private function handleEditing():void{
+				if(EHS.properties.editingMode.value){
+					inspectionMode.includeInLayout = false;
+					inspectionMode.enabled = false;
+					inspectionMode.visible = false;
+					
+					
+					editMode.includeInLayout = true;
+					editMode.enabled = true;
+					editMode.visible = true;
+					
+					
+				}else{
+					editMode.includeInLayout = false;
+					editMode.enabled = false;
+					editMode.visible = false;
+					
+					
+					inspectionMode.enabled = true;
+					inspectionMode.visible = true;
+					inspectionMode.includeInLayout = true;
+					
+				}
+			}
+			
+			override protected function createChildren():void{
+				super.createChildren();
+				linkBindableProperty(inspectionData.answer,rbg,'selectedValue');
+			}
+			
+			
+			
+			
+			private function fillUi():void{
+				var row:Object = uiData.getSessionState() as Object;
+				if(row ){
+					setSessionState(inspectionData,row);
+				}
+			}
+			
+			private function changeFontProperties():void{
+				EHS.properties.sectionSettings.checklistTextFormat.copyToStyle(question as Label);
+				EHS.properties.sectionSettings.checklistTextFormat.copyToStyle(questNumber as Label);
+			}
+			
+			protected function rb_clickHandler(event:MouseEvent):void
+			{
+				var ui:InspectionDataCallout = EHS.properties.popUpUI as InspectionDataCallout;
+				if(event.target == noRB){
+					ui.load(this);
+				}
+				/*else if(event.target == naRB){
+					ui.setOwner("NA");
+				}*/
+				else{
+					ui.load(null);
+				}
+				
+			}
+			
+			protected function commentView_clickHandler(event:MouseEvent):void
+			{
+				var ui:InspectionDataCallout = EHS.properties.popUpUI as InspectionDataCallout;
+				ui.load(this);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:RadioButtonGroup id="rbg"     />
+	</fx:Declarations>
+	
+	<s:HGroup  id="inspectionMode"  verticalAlign="middle" gap="12" >		
+		<s:RadioButton group="{rbg}" id="yesRB" value="yes"   skinClass="ehs.ui.skins.EHSRadioButtonSkin" click="rb_clickHandler(event)"  />
+		<s:RadioButton group="{rbg}" id="noRB" value="no"    skinClass="ehs.ui.skins.EHSRadioButtonSkin" click="rb_clickHandler(event)"    />
+		<s:RadioButton group="{rbg}" id="naRB"  value="NA" skinClass="ehs.ui.skins.EHSRadioButtonSkin"  click="rb_clickHandler(event)" />
+		<s:Label id="questNumber" text="{String(questionNumber)}. " fontSize="14"/>
+		<s:Label id="question" creationComplete="linkBindableProperty(inspectionData.question,event.target,'text');" fontSize="14"/>
+	</s:HGroup>
+	
+	
+	
+	<s:VGroup gap="12" id="editMode" width="100%"  verticalAlign="middle">		
+		<s:HGroup width="100%">
+			<s:Label  text="{String(questionNumber)}. " fontSize="14"/>
+			<s:VGroup gap="12" width="100%"  verticalAlign="middle">	
+				<s:RichEditableText id="questionEdit" creationComplete="linkBindableProperty(inspectionData.question,event.target,'text');" fontSize="14" width="100%"/>
+				<s:RichEditableText id="commentEdit" creationComplete="linkBindableProperty(inspectionData.comment,event.target,'text');" fontSize="14" width="100%"   />
+			</s:VGroup>
+		</s:HGroup>	
+		
+	</s:VGroup>
+	
+	
+	
+	
+	
+
+	
+	
+</s:Group>

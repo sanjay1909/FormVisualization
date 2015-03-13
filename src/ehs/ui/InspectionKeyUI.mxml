@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx"  width="100%" 
+				 implements="weave.api.core.ILinkableObject" xmlns:ui="ehs.ui.*" 
+				xmlns:components="org.flashcommander.components.*" creationComplete="creationCompleteHandler(event)"  >
+	<s:Rect left="4" right="4" top="4" bottom="4">
+		<s:fill>
+			<s:SolidColor color="0xffffff"/>
+		</s:fill>	
+		
+	</s:Rect>
+	
+	<s:Form textAlign="right" fontSize="14" width="100%" height="100%" id="keyHolder">
+		<s:layout>
+			<s:FormLayout gap="-10" />
+		</s:layout>
+		<s:FormItem label="Building">
+			<components:AutoComplete id="ac1"  
+									requireSelection="true" forceOpen="true" creationComplete="linkBindableProperty(keyData.building,event.target,'text')"/>              
+			<!--<ui:TextInputWithValidation  creationComplete="linkBindableProperty(keyData.building,event.target,'text')"/>-->			
+		</s:FormItem>
+		<s:FormItem label="Room">
+			<ui:TextInputWithValidation  creationComplete="linkBindableProperty(keyData.roomNumbers,event.target,'text')"/>			
+		</s:FormItem>
+		<s:FormItem label="Principal Investigator">
+			<s:HGroup>
+				<ui:TextInputWithValidation  creationComplete="linkBindableProperty(keyData.principalInvestigator,event.target,'text') "/>
+				<s:CheckBox label="Professor" id="isProf" creationComplete="linkBindableProperty(keyData.isProfessor,event.target,'selected')" />
+			</s:HGroup>		
+		</s:FormItem>
+		<s:FormItem label="Date">
+			<mx:DateField creationComplete="linkBindableProperty(keyData.inspectionDate,event.target,'selectedDate')"/>					
+		</s:FormItem>
+		<s:FormItem label="Follow Up" id="followUp">
+			<mx:DateField creationComplete="linkBindableProperty(keyData.followUpDate,event.target,'selectedDate')"/>					
+		</s:FormItem>
+		<s:FormItem label="Department">
+			<ui:TextInputWithValidation  creationComplete="linkBindableProperty(keyData.dept,event.target,'text')"/>			
+		</s:FormItem>
+		<s:FormItem label="Primary Function">
+			<s:VGroup id="primFuncHolder">
+				<s:CheckBox label="Academic" creationComplete="linkBindableProperty(isAcademic,event.target,'selected')"/>
+				<s:CheckBox label="Research" creationComplete="linkBindableProperty(isResearch,event.target,'selected')"/>
+				<s:CheckBox label="Services" creationComplete="linkBindableProperty(isServices,event.target,'selected')"/>		
+			</s:VGroup>		
+		</s:FormItem>
+		<s:FormItem label="Inspector">
+			<s:Label    creationComplete="linkBindableProperty(keyData.inspector,event.target,'text');keyData.inspector.value = pm.inspectorInfo.firstName.value+' ' + pm.inspectorInfo.lastName.value; " />
+			<!--<components:AutoComplete id="ac2" 
+									 dataProvider="['Glenn MacDonald','Kathi Lyon','Medina Ruth','Sanjay Krishna']"   
+									 requireSelection="true" forceOpen="true" creationComplete="linkBindableProperty(keyData.inspector,event.target,'text');linkBindableProperty(EHS.properties.editingMode,event.target,'enabled')"/>  -->
+			<!--<ui:TextInputWithValidation  creationComplete="linkBindableProperty(keyData.inspector,event.target,'text')"/>-->			
+		</s:FormItem>
+		
+	</s:Form>
+	
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			
+			import ehs.EHS;
+			import ehs.EHSProperties;
+			import ehs.data.InspectionKeyData;
+			
+			import print.IServerManager;
+			import print.ServerManager;
+			
+			import weave.api.linkBindableProperty;
+			import weave.api.newLinkableChild;
+			import weave.api.registerLinkableChild;
+			import weave.core.LinkableBoolean;
+			import weave.core.LinkableString;
+			
+			public var pageNumber:int;
+			
+			
+			[Bindable]
+			public var sectiontitle:String = "";
+			
+			public const keyData:InspectionKeyData = newLinkableChild(this,InspectionKeyData);
+				
+			public const isAcademic:LinkableBoolean = registerLinkableChild(this,new LinkableBoolean(false),updatePrimaryFunction);
+			public const isResearch:LinkableBoolean = registerLinkableChild(this,new LinkableBoolean(false),updatePrimaryFunction);
+			public const isServices:LinkableBoolean = registerLinkableChild(this,new LinkableBoolean(false),updatePrimaryFunction);
+			
+			private function updatePrimaryFunction():void{
+				var arr:Array = new Array();
+				if(isAcademic.value)arr.push("Academic");
+				if(isResearch.value)arr.push("Research");
+				if(isServices.value)arr.push("Services");
+				keyData.primaryFunction.setSessionState(arr);				
+			}
+			
+		
+			
+			
+			private var pm:ServerManager =  WeaveAPI.ClassRegistry.getSingletonInstance(IServerManager) as ServerManager;
+			
+			protected function creationCompleteHandler(event:FlexEvent):void
+			{
+				EHS.properties.editingMode.addImmediateCallback(this,setUIVisibility,true);
+				EHS.properties.mode.addImmediateCallback(this,setFollowUpVisibilty,true);
+				EHS.properties.buildings.addGroupedCallback(this,populateBuildingMenu,true);
+				if(!EHS.properties.buildings.getSessionState()){
+					loadDefaultBuildings();
+				}
+			}
+			
+			private function setUIVisibility():void{
+				if(EHS.properties.editingMode.value){
+					keyHolder.enabled = false;
+				}else{
+					keyHolder.enabled = true;
+				}
+			}
+			
+			
+			private function setFollowUpVisibilty():void{
+				if(EHS.properties.mode.value == EHSProperties.FOLLOWUP){
+					followUp.visible = followUp.includeInLayout = true;
+				}else if(EHS.properties.mode.value == EHSProperties.INSPECTION){
+					followUp.visible = followUp.includeInLayout = false;
+				}
+			}
+			
+			private function populateBuildingMenu():void{
+				var arr:Array =  EHS.properties.buildings.getSessionState() as Array;
+			
+				ac1.dataProvider = arr;
+			}
+			
+			// later give user the option to load CSV and design the UI based on that
+			[Embed(source="/../ehs/buildingSource.txt",mimeType="application/octet-stream")]
+			private var buildingSource:Class;				
+			private var buildingSourceAsBytes:ByteArray;				
+			public function loadDefaultBuildings():void{
+				if(!buildingSourceAsBytes){
+					buildingSourceAsBytes = new buildingSource();
+				}
+				var arr:Array = WeaveAPI.CSVParser.parseCSV(buildingSourceAsBytes.readUTFBytes(buildingSourceAsBytes.length));
+				EHS.properties.buildings.setSessionState(arr);
+				
+				
+			}
+			
+		]]>
+	</fx:Script>
+	
+</s:Group>

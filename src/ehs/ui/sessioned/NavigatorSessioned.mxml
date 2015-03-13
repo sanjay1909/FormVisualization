@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 implements="weave.api.core.ILinkableObject" width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.core.IVisualElement;
+			
+			import spark.events.IndexChangeEvent;
+			import spark.layouts.HorizontalLayout;
+			import spark.layouts.VerticalLayout;
+			
+			import ehs.data.FollowUpData;
+			import ehs.ui.InspectionCommentImagesUI;
+			
+			import weave.api.registerDisposableChild;
+			import weave.api.registerLinkableChild;
+			import weave.api.core.ILinkableHashMap;
+			import weave.api.core.ILinkableObject;
+			import weave.compiler.StandardLib;
+			import weave.core.LinkableHashMap;
+			import weave.core.LinkableNumber;
+			import weave.core.LinkableString;
+			import weave.core.LinkableVariable;
+			import weave.core.LinkableWatcher;
+			
+			private var _constructorCalled:Boolean = false; // true when constructor has been called
+			override protected function resourcesChanged():void
+			{
+				super.resourcesChanged();
+				if (!_constructorCalled) // avoid calling constructor twice
+				{
+					_constructorCalled = true;
+					constructor();
+				}
+			}
+			
+			/**
+			 * A constructor cannot be defined in MXML.
+			 * This function gets called as a result of calling the super class's constructor.
+			 * Classes that extend DraggablePanel can override this and call super.constructor().
+			 * Any code that should execute in the constructor can be put into this function.
+			 * This function should not be called directly.
+			 */
+			protected function constructor():void
+			{
+				hasFocusableChildren = false;
+				position.addImmediateCallback(this,postionMenu,true);
+				//currentPage.addImmediateCallback(this,changePage,false);				
+			}
+			
+			override protected function childrenCreated():void{
+				super.childrenCreated();					
+			}
+			
+			[Bindable]
+			public var linkData:ArrayCollection = new ArrayCollection();
+			
+					
+			public const position:LinkableString = registerLinkableChild(this,new LinkableString("top"));
+			
+			
+			public const contentBackground:LinkableNumber = registerLinkableChild(this, new LinkableNumber(0xffffff),updateContentColor,true);//0x202425 - inspectionTool content				
+			public const menuBackground:LinkableNumber = registerLinkableChild(this, new LinkableNumber(0xffffff),updateMenuColor,true);//0x36373b - inspectionTool menu
+			
+			
+			
+			
+			private function updateMenuColor():void{
+				menuBgFill.color = menuBackground.value;
+			}
+			
+			private function updateContentColor():void{
+				bgFill.color = contentBackground.value;
+			}
+			
+			
+			public function load(contents:LinkableHashMap,uiClass:Class):void{
+				var path:Array = WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap, contents);
+				contentsTargetPath.setSessionState(path);
+				contentUIClass = uiClass;
+				if(contents)
+					contentsChildListWatcher.target = contents.childListCallbacks;
+			}
+			
+			private var contentUIClass:Class;			
+			private const navigatorContents:LinkableHashMap = registerLinkableChild(this, new LinkableHashMap());
+			
+			//Follow-Up Watcher
+			//
+			//
+			// - Settings
+			public const contentsTargetPath:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array, verifyfollowUpPath), handleFollowUpPath);
+			
+			private const contentsWatcher:LinkableWatcher = registerDisposableChild(this, new LinkableWatcher());
+			private const  contentsChildListWatcher:LinkableWatcher = registerDisposableChild(this, new LinkableWatcher(null,updateMenu));
+			
+			private function verifyfollowUpPath(path:Array):Boolean
+			{
+				return !path || StandardLib.getArrayType(path) == String;
+			} 
+			//Session callback for targetpath change
+			//set watcher fot the conntents and its childlistcallbacks
+			private function handleFollowUpPath():void
+			{
+				contentsWatcher.targetPath = contentsTargetPath.getSessionState() as Array;
+				if(contentsWatcher.target){
+					contentsChildListWatcher.target = (contentsWatcher.target as ILinkableHashMap).childListCallbacks;
+					var names:Array = (contentsWatcher.target as LinkableHashMap).getNames();
+					linkData.source = names;
+					linkData.refresh();
+					var objects:Array = (contentsWatcher.target as LinkableHashMap).getObjects();
+					for(var i:int = 0 ; i<objects.length; i++){
+						var ui:InspectionCommentImagesUI = navigatorContents.requestObject(names[i],InspectionCommentImagesUI,false);
+						var followUpdata:FollowUpData = objects[i];
+						// load based on who is active , add watcher targetpath to see which one is active
+						//ui.load(followUpdata.
+					}
+				}
+				else{
+					contentsChildListWatcher.target = null;
+					//linkData.
+				}
+			}
+			
+			private var currentSection:IVisualElement = null;			
+			
+			
+			private function  postionMenu():void{
+				if(position.value == "top")
+					this.layout = new VerticalLayout()
+				else if(position.value == "left")
+					this.layout = new HorizontalLayout();
+			}
+			
+			
+			protected function addFollowUp_clickHandler(event:MouseEvent):void
+			{
+				var contents:ILinkableHashMap = contentsWatcher.target as ILinkableHashMap;
+				contents.requestObject("Follow Up" + linkData.length ,FollowUpData,false);
+			}
+			
+			private function updateMenu():void{
+				var contents:ILinkableHashMap = contentsWatcher.target as ILinkableHashMap;
+				if(contents.childListCallbacks.lastNameAdded){					
+					linkData.addItem(contents.childListCallbacks.lastNameAdded);
+					navigatorContents.requestObject(contents.childListCallbacks.lastNameAdded,contentUIClass,false);
+					
+				}
+				else if(contents.childListCallbacks.lastNameRemoved){
+					linkData.removeItem(contents.childListCallbacks.lastNameRemoved);					
+				}
+				
+			}
+			
+			//sessioned object is updated here
+			protected function pageMenu_changeHandler(event:IndexChangeEvent):void
+			{				
+				//currentPage.value  = (event.currentTarget as ButtonBar).selectedItem as String;
+			}
+			//skinClass="ehs.ui.skins.EhsButtonBarSkin" 
+			
+			
+			
+			//visible="false" includeInLayout="false"
+			
+		]]>
+	</fx:Script>
+	
+	
+	<s:Group height="100%" width="100%"  id="pageMenuHolder" >
+		<s:Rect left="0" right="0" top="0" bottom="0">
+			<s:fill><s:SolidColor id="menuBgFill"     /></s:fill>					
+		</s:Rect>
+		<s:HGroup left="4" right="4">
+			<s:ButtonBar id="pageMenu" dataProvider="{linkData}" change="pageMenu_changeHandler(event)"/>	
+			<s:Button id="addFollowUp" width="32" label="+" click="addFollowUp_clickHandler(event)"/>
+		</s:HGroup>
+		
+	</s:Group>
+	<s:Group  width="100%" height="100%" >				
+		<s:Rect left="0" right="0" top="0" bottom="0">
+			<s:fill><s:SolidColor id="bgFill"  /></s:fill>					
+		</s:Rect>
+		<s:Scroller left="8" right="4" top="4" bottom="4" verticalScrollPolicy="auto" 
+					horizontalScrollPolicy="auto" >
+			<s:Group id="formSection"  height="100%" width="100%" minWidth="0" minHeight="0"  >
+				
+			</s:Group>
+		</s:Scroller>
+	</s:Group>
+	
+</s:Group>

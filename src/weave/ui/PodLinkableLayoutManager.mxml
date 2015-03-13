@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" height="100%" 
+		 implements="weave.api.ui.ILinkableLayoutManager,weave.api.core.IDisposableObject" xmlns:pod="com.asanjay.pod.*">
+	<pod:PodLayoutManager id="manager"/>
+		
+	<fx:Script>
+		<![CDATA[
+			import com.asanjay.pod.ui.PodWindow;
+			
+			import mx.core.IVisualElement;
+			
+			import weave.api.getCallbackCollection;
+			import weave.compiler.StandardLib;
+			
+			private var _idToPod:Object = {}; // String -> Pod
+			private var _idToComponent:Object = {}; // String -> IVisualElement
+			private var _componentToId:Dictionary = new Dictionary(true); // IVisualElement -> String
+			
+			
+			private function addPod(component:IVisualElement,id:String):void{
+				var pod:PodWindow= new PodWindow();
+				pod.id = id;
+				_idToPod[id] = pod;
+				pod.title = id;
+				manager.addPod(pod,true);
+				pod.initialize();
+				pod.addElement(component);
+			}
+			
+			/**
+			 * Adds a component to the layout.
+			 * @param id A unique identifier for the component.
+			 * @param component The component to add to the layout.
+			 */		
+			public function addComponent(id:String, component:IVisualElement):void
+			{
+				if (!id)
+					throw new Error("id cannot be null or empty String");
+				if (_idToComponent[id] != component)
+				{
+					if (_idToComponent[id])
+						throw new Error("id already exists: " + id);
+					_idToComponent[id] = component;
+					_componentToId[component] = id;
+					addPod(component,id);
+					
+					getCallbackCollection(this).triggerCallbacks();
+				}
+			}
+			
+			/**
+			 * Removes a component from the layout.
+			 * @param id The id of the component to remove.
+			 */
+			public function removeComponent(id:String):void
+			{
+				var component:IVisualElement = _idToComponent[id] as IVisualElement;
+				if (component)
+				{
+					
+					var pod:PodWindow = _idToPod[id];
+					delete _idToPod[id];
+					if (pod.parent)
+						pod.close();
+					
+					delete _idToComponent[id];
+					delete _componentToId[component];
+					getCallbackCollection(this).triggerCallbacks();
+					
+				}
+			}
+			
+			/**
+			 * Reorders the components. 
+			 * @param orderedIds An ordered list of ids.
+			 */
+			public function setComponentOrder(orderedIds:Array):void
+			{
+				// do nothing if order didn't change
+				if (StandardLib.compare(orderedIds, getComponentOrder()) == 0)
+					return;
+				
+				getCallbackCollection(this).delayCallbacks();
+				var childIndex:int = 0;
+				for each (var id:String in orderedIds)
+				{
+					/*var newIndex:int = childIndex++;
+					orderedIDs.setItemAt(id,newIndex);
+					getCallbackCollection(this).triggerCallbacks();*/
+				}
+				//_currentOrder = orderedIds;
+				getCallbackCollection(this).resumeCallbacks();
+			}
+			
+			//private var _currentOrder:Array;
+			/*private function get currentOrder():Array{
+			if(!_currentOrder) _currentOrder = getComponentOrder();
+			return _currentOrder;
+			}*/
+			
+			/**
+			 * This is an ordered list of ids in the layout.
+			 */		
+			public function getComponentOrder():Array
+			{
+				var result:Array = [];
+				/*for (var index:int = 0; index < orderedIDs.length; index++)
+				{
+					var componentID:String = orderedIDs.getItemAt(index) as String;					
+					if (componentID)
+						result.push(componentID);
+				}*/
+				//_currentOrder = result;
+				return result;
+			}
+			
+			
+			/**
+			 * This function can be used to check if a component still exists in the layout.
+			 */		
+			public function hasComponent(id:String):Boolean
+			{
+				return _idToComponent[id] is IVisualElement;
+			}
+			
+			/**
+			 * This is called when the object is disposed.
+			 */
+			public function dispose():void
+			{
+				getCallbackCollection(this).delayCallbacks();				
+				for each (var id:String in getComponentOrder())
+				removeComponent(id);
+				
+				getCallbackCollection(this).resumeCallbacks();
+			}
+			
+			
+		]]>
+	</fx:Script>
+</s:Group>

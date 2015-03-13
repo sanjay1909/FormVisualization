@@ -1,0 +1,565 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  implements="weave.api.core.ILinkableObject,weave.api.core.IDisposableObject"
+		  xmlns:ui="weave.ui.*" width="100%" >
+	<s:Group  id="editMode" width="100%"  >
+		<s:Rect left="1" right="1" top="1" bottom="1">
+			<s:fill>
+				<s:SolidColor id="bgFill" color="0x202425"/>
+			</s:fill>
+		</s:Rect>
+		<s:HGroup left="2" right="2" top="4" bottom="2" >
+			<s:Label text="  Edit Mode" color="0xffffff" fontSize="24"/>
+			<ui:HelpSparkComponent id="help" visible="false" includeInLayout="false"/>			
+			<s:Spacer width="100%"/>
+			<s:Label text="+  " click="addData();" color="0xffffff" fontSize="24"/>
+		</s:HGroup>
+	</s:Group>
+	<s:List id="view" width="100%"  
+			borderVisible="false" allowMultipleSelection="true" 
+			doubleClick="handleItemSelection(event)" doubleClickEnabled="true" 
+			mouseDown="handleMouseDown()"
+			click="handleMouseClick()"
+			horizontalScrollPolicy="off" verticalScrollPolicy="off"/>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.collections.ICollectionView;
+			import mx.core.ClassFactory;
+			import mx.core.IUIComponent;
+			import mx.events.DragEvent;
+			import mx.managers.DragManager;
+			
+			import spark.components.List;
+			import spark.components.gridClasses.GridLayout;
+			import spark.events.ListEvent;
+			import spark.layouts.HorizontalLayout;
+			import spark.layouts.TileLayout;
+			import spark.layouts.VerticalLayout;
+			import spark.layouts.supportClasses.DropLocation;
+			
+			import weave.Weave;
+			import weave.api.detectLinkableObjectChange;
+			import weave.api.getCallbackCollection;
+			import weave.api.newLinkableChild;
+			import weave.api.registerLinkableChild;
+			import weave.api.core.ILinkableHashMap;
+			import weave.api.core.ILinkableObject;
+			import weave.api.data.IQualifiedKey;
+			import weave.core.ClassUtils;
+			import weave.core.LinkableBoolean;
+			import weave.core.LinkableNumber;
+			import weave.core.LinkableString;
+			import weave.core.LinkableWatcher;
+			import weave.core.UntypedLinkableVariable;
+			import weave.data.KeySets.FilteredKeySet;
+			import weave.data.KeySets.KeySet;
+			import weave.primitives.ColorRamp;
+			import weave.utils.LinkableTextFormat;
+			
+			
+			
+			
+			private const _hashMapWatcher:LinkableWatcher = newLinkableChild(this, LinkableWatcher, refreshLabels, true);
+			private const _childListWatcher:LinkableWatcher = newLinkableChild(this, LinkableWatcher, updateDataProvider);
+			private var _labelFunction:Function = null;
+			private var _filterFunction:Function = null;
+			private var _reverse:Boolean = false;
+			
+			private var _constructorCalled:Boolean = false; // true when constructor has been called
+			
+			/**
+			 *  This method is called when a UIComponent is constructed,
+			 *  and again whenever the ResourceManager dispatches
+			 *  a <code>"change"</code> Event to indicate
+			 *  that the localized resources have changed in some way.
+			 */
+			override protected function resourcesChanged():void
+			{
+				super.resourcesChanged();
+				if (!_constructorCalled) // avoid calling constructor twice
+				{
+					_constructorCalled = true;
+					inConstructor();
+				}
+			}
+			
+			/**
+			 * A constructor cannot be defined in MXML.
+			 * This function gets called as a result of calling the super class's constructor.
+			 * Classes that extend DraggablePanel can override this and call super.inConstructor().
+			 * Any code that should execute in the constructor can be put into this function.
+			 * This function should not be called directly.
+			 */
+			protected function inConstructor():void
+			{
+				filteredKeySet.keyFilter.targetPath = [Weave.DEFAULT_SUBSET_KEYFILTER];
+				_probe.addImmediateCallback(this, updateGlobalProbeChangeLater);
+				for each (var target:ILinkableObject in [this, _selection,_probe, Weave.defaultColorColumn])
+					getCallbackCollection(target).addGroupedCallback(this, groupedUpdate, true);
+				
+				
+			}
+			
+			override protected function childrenCreated():void
+			{
+				super.childrenCreated();
+				
+				
+				view.addEventListener(ListEvent.ITEM_ROLL_OVER, handleRollOver);
+				view.addEventListener(MouseEvent.ROLL_OUT, handleRollOut);
+				
+				
+			}
+			/**
+			 * This function(event Listener) gets called during 
+			 * Change event in DataGrid
+			 * DoubleClick event in DataGrid
+			 */	
+			private function handleItemSelection(event:Event=null):void
+			{
+				_selection.replaceKeys([].concat(view.selectedItems));
+			}
+			
+			private function handleMouseDown():void
+			{
+				detectLinkableObjectChange( handleMouseClick, _selection )
+			}
+			
+			private function handleMouseClick():void
+			{
+				if (!detectLinkableObjectChange( handleMouseClick, _selection ))					
+					if ( WeaveAPI.StageUtils.pointClicked )
+						_selection.clearKeys() ;
+			}
+			private function handleRollOver(event:ListEvent):void
+			{
+				if (enableProbing.value == false)
+					return;
+				var obj:Object = view.dataProvider.getItemAt(event.itemIndex).value;
+				var key:IQualifiedKey = WeaveAPI.QKeyManager.getQKey(obj['keyType'], obj['localName']);
+				if (key)
+					_probe.replaceKeys([key]);
+				else
+					_probe.clearKeys();
+			}
+			private function handleRollOut(event:MouseEvent):void
+			{
+				if (enableProbing.value == false)
+					return;
+				
+				_probe.clearKeys();
+			}
+			
+			
+			/* TODO: Move this method into an abstract class to extend CustomDataGrid
+			this functionality is duplicated used in TreeTool */ 
+			private function updateGlobalSelectionChange():void
+			{
+				if (!parent)
+					return callLater(updateGlobalSelectionChange);
+				
+				
+				var item:Object;
+				var isSelected:Dictionary = new Dictionary(true);
+				for each (item in view.selectedItems)
+				isSelected[item] = true;
+				
+				var changeDetected:Boolean = false;
+				var selectedItems:Vector.<Object> = new Vector.<Object>();
+				for each (item in view.dataProvider)
+				{
+					var obj:Object = (item as UntypedLinkableVariable).value;
+					var key:IQualifiedKey = WeaveAPI.QKeyManager.getQKey(obj['keyType'], obj['localName']);
+					if (_selection.containsKey(key))
+					{
+						if (!isSelected[item])
+							changeDetected = true;
+						selectedItems.push(item);
+					}
+					else if (isSelected[item])
+						changeDetected = true;
+				}
+				if (selectedItems.length != view.selectedItems.length)
+					changeDetected = true;
+				
+				if (changeDetected)
+					view.selectedItems = selectedItems;
+			}
+			
+			private function updateGlobalProbeChangeLater():void
+			{
+				if (enableProbing.value == true)
+					callLater(updateGlobalProbeChange);
+			}
+			
+			/* TODO: Move this method into an abstract class to extend CustomDataGrid off of;
+			this functionality is duplicated used in TreeTool */ 
+			private function updateGlobalProbeChange():void 
+			{
+				if (!parent)
+				{
+					callLater(updateGlobalProbeChange);
+					return;
+				}
+				//view.invalidateList();
+				//view.validateNow();
+				//view.highlightItemsForced(_probe.keys, _selection.containsKey);
+			}
+			
+			
+			
+			private function groupedUpdate():void
+			{
+				if (!parent) 
+					return;
+				
+				var keySetChanged:Boolean = detectLinkableObjectChange(groupedUpdate, filteredKeySet);
+				if (detectLinkableObjectChange(groupedUpdate, _selection))
+				{
+					updateGlobalSelectionChange();
+					view.invalidateDisplayList();
+				}
+				
+				//if (detectLinkableObjectChange(groupedUpdate, _textFormat))
+				//{
+					//_textFormat.copyToStyle(view);
+				//}
+				if (detectLinkableObjectChange(groupedUpdate, backgroundColor1, backgroundColor2, colorRamp, Weave.defaultColorColumn))
+				{
+					view.setStyle("alternatingItemColors", [backgroundColor1.value, backgroundColor2.value]);
+					extraColorTriggers = 2;
+				}
+				if (extraColorTriggers)
+				{
+					extraColorTriggers--;
+					callLater(updateColors);
+				}
+				updateGlobalProbeChangeLater();
+			}
+			private var extraColorTriggers:uint = 2;
+			private function updateColors():void
+			{
+				view.styleChanged('alternatingItemColors');
+			}
+			
+			
+			public function dispose():void
+			{
+				_hashMapWatcher.target = null;
+				_childListWatcher.target = null;
+				_labelFunction = null;
+				_filterFunction = null;
+				_editWatcher.target = null;
+				view.dataProvider = null;
+			}
+			
+			public const filteredKeySet:FilteredKeySet = newLinkableChild(this, FilteredKeySet);
+			public const enableProbing:LinkableBoolean = registerLinkableChild(this, new LinkableBoolean(true));
+			public const colorRamp:ColorRamp = newLinkableChild(this, ColorRamp);
+			internal static const DEFAULT_BACKGROUND_COLORS:Array = [0xffffff, 0xffffff];
+			public const backgroundColor1:LinkableNumber = registerLinkableChild(this, new LinkableNumber(DEFAULT_BACKGROUND_COLORS[0]));
+			public const backgroundColor2:LinkableNumber = registerLinkableChild(this, new LinkableNumber(DEFAULT_BACKGROUND_COLORS[1]));
+			
+			
+			//private var _textFormat:LinkableTextFormat = Weave.properties.visTextFormat;
+			private var _selection:KeySet = Weave.defaultSelectionKeySet;
+			private var _probe:KeySet = Weave.defaultProbeKeySet;
+			
+			
+			private const _editWatcher:LinkableWatcher = newLinkableChild(this, LinkableWatcher, handleEditMode, true);
+			//public const editable:LinkableBoolean = registerLinkableChild(this, new LinkableBoolean(false),handleEditMode,true);
+			public const itemRendererClassName:LinkableString = registerLinkableChild(this, new LinkableString(),handleItemRendererChange,true);
+			public const layoutStyle:LinkableString = registerLinkableChild(this, new LinkableString("vertical"),handleLayoutChange,true);
+			
+			public function get editable():LinkableBoolean
+			{
+				return _editWatcher.target as LinkableBoolean;
+			}
+			
+			public function set editable(value:LinkableBoolean):void
+			{
+				_editWatcher.target = value;
+			}
+			
+			
+			/**
+			 * This function gets called when the preinitialize event is dispatched.
+			 * Subclasses can override this method and call super.preinitialize().
+			 */
+			protected function preinitialize():void
+			{
+				// nothing here, just a placeholder
+			}
+			
+			
+			
+			public function set helpContent(value:*):void
+			{
+				if (!help)
+					initialize();
+				help.content = value;
+				help.visible = help.includeInLayout = true;
+			}
+			
+			public function set helpContentHtml(value:*):void
+			{
+				if (!help)
+					initialize();
+				help.htmlText = value;
+				help.visible = help.includeInLayout = true;
+			}
+			
+			public function get hashMap():ILinkableHashMap
+			{
+				return _hashMapWatcher.target as ILinkableHashMap;
+			}
+			
+			public function set hashMap(value:ILinkableHashMap):void
+			{
+				_hashMapWatcher.target = value;
+				if(value)// at dispose this will be null, value.childlistCallbacks will be null
+					_childListWatcher.target = value && value.childListCallbacks;
+			}
+			
+			private function handleEditMode():void{
+				/*var editable:LinkableBoolean = _editWatcher.target as LinkableBoolean;
+				if(editable && editable.value){
+					view.dragEnabled = true;
+					view.dropEnabled = true;
+					view.dragMoveEnabled = true;
+					//_editor.allowMultipleSelection = _allowMultipleSelection;
+					//_editor.showDataTips = false;
+					view.addEventListener(DragEvent.DRAG_OVER, dragOverHandler);
+					view.addEventListener(DragEvent.DRAG_DROP, dragDropHandler);
+					view.addEventListener(DragEvent.DRAG_COMPLETE, dragCompleteHandler);
+					view.addEventListener(DragEvent.DRAG_ENTER, dragEnterCaptureHandler, true);
+					editMode.visible  = editMode.includeInLayout = true;
+				}
+				else{
+					view.dragEnabled = false;
+					view.dropEnabled = false;
+					view.dragMoveEnabled = false;
+					
+					view.removeEventListener(DragEvent.DRAG_OVER, dragOverHandler);
+					view.removeEventListener(DragEvent.DRAG_DROP, dragDropHandler);
+					view.removeEventListener(DragEvent.DRAG_COMPLETE, dragCompleteHandler);
+					view.removeEventListener(DragEvent.DRAG_ENTER, dragEnterCaptureHandler, true);	
+					editMode.visible  = editMode.includeInLayout = false;
+				}*/
+				
+			}
+			
+			private function handleItemRendererChange():void{				
+				var itemClassName:String = itemRendererClassName.value;
+				if(itemClassName){
+					var itemClass:Class = ClassUtils.getClassDefinition(itemClassName);
+					view.itemRenderer = new ClassFactory(itemClass);
+				}					
+			}
+			
+			private function handleLayoutChange():void{
+				if(layoutStyle.value == 'vertical')
+					view.layout = new VerticalLayout();
+				else if(layoutStyle.value == 'horizontal')
+					view.layout = new HorizontalLayout();
+				else if(layoutStyle.value == 'tile')
+					view.layout = new TileLayout();
+				else if(layoutStyle.value == 'grid')
+					view.layout = new GridLayout();
+			}
+			
+			// called when something is being dragged on top of this list
+			private function dragOverHandler(event:DragEvent):void
+			{
+				if (dragSourceIsAcceptable(event))
+					DragManager.showFeedback(DragManager.MOVE);
+				else
+					DragManager.showFeedback(DragManager.NONE);
+			}
+			
+			// called when something is dropped into this list
+			private function dragDropHandler(event:DragEvent):void
+			{
+				//hides the drop visual lines
+				(event.currentTarget as List).layout.hideDropIndicator();
+				//_editor.mx_internal::resetDragScrolling(); // if we don't do this, list will scroll when mouse moves even when not dragging something
+				
+				if (event.dragInitiator == view)
+				{
+					event.action = DragManager.MOVE;
+					this.callLater(updateHashMapNameOrder);
+				}
+				else
+				{
+					event.preventDefault();
+					
+					var items:* = event.dragSource.dataForFormat("itemsByIndex");
+					if (hashMap)
+					{
+						var prevNames:Array = hashMap.getNames();
+						var newNames:Array = [];
+						var dropLocation:DropLocation = view.layout.calculateDropLocation(event);
+						var dropIndex:int = dropLocation.dropIndex;
+						var newObject:ILinkableObject;
+						
+						// copy items in reverse order because selectedItems is already reversed
+						for (var i:int = items.length - 1; i >= 0; i--)
+						{
+							var object:ILinkableObject = items[i] as ILinkableObject;
+							if (object && hashMap.getName(object) == null)
+							{
+								newObject = hashMap.requestObjectCopy(null, object);
+								newNames.push(hashMap.getName(newObject));
+							}
+						}
+						
+						// insert new names inside prev names list and save the new name order
+						var args:Array = newNames;
+						newNames.unshift(dropIndex, 0);
+						prevNames.splice.apply(null, args);
+						hashMap.setNameOrder(prevNames);
+						
+					}
+				}
+			}
+			
+			private function updateHashMapNameOrder():void
+			{
+				
+				this.validateNow();
+				
+				if (hashMap)
+				{
+					// update object map name order based on what is in the data provider
+					var newNameOrder:Array = [];
+					for (var i:int = 0; i < view.dataProvider.length; i++)
+					{
+						var object:ILinkableObject = view.dataProvider[i] as ILinkableObject;
+						if (object)
+							newNameOrder[i] = hashMap.getName(object);
+					}
+					if (_reverse)
+						newNameOrder.reverse();
+					hashMap.setNameOrder(newNameOrder);
+				}
+			}
+			private function dragSourceIsAcceptable(event:DragEvent):Boolean
+			{
+				if (event.dragSource.hasFormat("items"))
+				{
+					var items:Array = event.dragSource.dataForFormat("items") as Array;
+					for each (var item:Object in items)
+					{
+						if (item is ILinkableObject)
+							return true;
+					}
+				}
+				return false;
+			}
+			
+			// called when something is dragged on top of this list
+			private function dragEnterCaptureHandler(event:DragEvent):void
+			{
+				if (dragSourceIsAcceptable(event))
+					DragManager.acceptDragDrop(event.currentTarget as IUIComponent);
+				event.preventDefault();
+			}
+			
+			public var defaultDragAction:String = DragManager.COPY;
+			
+			// called when something in this list is dragged and dropped somewhere else
+			private function dragCompleteHandler(event:DragEvent):void
+			{
+				if (event.shiftKey)
+					event.action = DragManager.MOVE;
+				else if (event.ctrlKey)
+					event.action = DragManager.COPY;
+				else
+					event.action = defaultDragAction;
+				
+				this.callLater(removeObjectsMissingFromDataProvider);
+			}
+			
+			private function removeObjectsMissingFromDataProvider():void
+			{
+				
+				if (hashMap)
+				{
+					var objects:Array = hashMap.getObjects();
+					for each (var object:ILinkableObject in objects)
+					{
+						if(!(view.dataProvider as ArrayCollection).contains(object))
+							hashMap.removeObject(hashMap.getName(object));
+					}
+				}
+			}
+			
+			private function refreshLabels():void
+			{
+				view.labelFunction = view.labelFunction; // this refreshes the labels
+			}
+			
+			
+			private function updateDataProvider():void
+			{
+				if(!_childListWatcher.target)
+					return;
+				
+				
+				if (hashMap)
+				{
+					//setNameColumnHeader();
+					var objects:Array = hashMap.getObjects();
+					if (_filterFunction != null)
+						objects = objects.filter(_filterFunction);
+					if (_reverse)
+						objects = objects.reverse();
+					if(!view.dataProvider){
+						view.dataProvider = new ArrayCollection(objects);
+					}
+					else{
+						(view.dataProvider as ArrayCollection).source = objects
+					}
+					
+				}
+				else
+					view.dataProvider = null;
+				
+				
+				var viewCollection:ICollectionView = view.dataProvider as ICollectionView;
+				if (viewCollection)
+					viewCollection.refresh();
+				
+				
+				var selectedItems:Vector.<Object> = view.selectedItems;
+				if (selectedItems && selectedItems.length)
+				{
+					view.validateProperties();
+					var vsp:int = view.layout.verticalScrollPosition;
+					if (vsp >= 0 && vsp <= maxVerticalScrollPosition())
+						view.layout.verticalScrollPosition = vsp;
+					view.selectedItems = selectedItems;
+				}
+				
+				getCallbackCollection(this).triggerCallbacks();
+			}
+			
+			private function maxVerticalScrollPosition():Number
+			{
+				var maxVSP:Number = (view.dataGroup.contentHeight) - (view.dataGroup.height) ;
+				return maxVSP;
+			}
+			
+			private function addData():void{
+				if (hashMap)
+					hashMap.requestObject("",hashMap.typeRestriction,false);
+			}
+			
+			
+		]]>
+	</fx:Script>
+	
+</s:VGroup>

@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 implements="weave.api.core.ILinkableObject">
+	<s:VGroup left="2" right="2" top="2" bottom="2" id="tabMode" gap="0">
+		
+		<s:Group   width="100%"  id="followUpHolder" >
+			<s:HGroup left="32" right="4" gap="0" top="8" >
+				<s:Button id="firstTab"  creationComplete="linkBindableProperty(firstTabName,event.currentTarget,'label');" click="firstTab_clickHandler(event)"/>
+				<s:ButtonBar id="pageMenu" dataProvider="{tabMenu}" change="pageMenu_changeHandler(event)" maxWidth="{calloutWidth - 228}"  />	
+				<s:Button id="addTab" width="32" label="+" click="addTab_clickHandler(event)"/>
+			</s:HGroup>
+			
+		</s:Group>
+		<s:Group  width="100%" height="100%"  >				
+			<s:Scroller left="4" right="4"  bottom="4"
+						verticalScrollPolicy="auto" 
+						horizontalScrollPolicy="auto" >
+				<s:Group id="tabUISection"  height="100%" width="100%" minWidth="0" minHeight="0"  >
+					
+				</s:Group>
+			</s:Scroller>
+		</s:Group>
+		
+		
+	</s:VGroup>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			
+			import spark.events.IndexChangeEvent;
+			
+			import ehs.data.FollowUpData;
+			import ehs.data.InspectionData;
+			
+			import weave.api.getLinkableOwner;
+			import weave.api.linkBindableProperty;
+			import weave.api.registerDisposableChild;
+			import weave.api.registerLinkableChild;
+			import weave.api.core.ILinkableHashMap;
+			import weave.compiler.StandardLib;
+			import weave.core.LinkableHashMap;
+			import weave.core.LinkableString;
+			import weave.core.LinkableVariable;
+			import weave.core.LinkableWatcher;
+			
+			
+			public const firstTabName:LinkableString = registerLinkableChild(this, new LinkableString('Inspection'));
+			
+			public const firstTabPath:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array, verifyPath), handleFirstTabPathChange);
+			public const tabsPath:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array, verifyPath), handleTabsPathChange);
+			public const activeTabPath:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array, verifyPath),handleActiveTabPathChange);
+			public const uiType:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Class));
+			public const bindableProperties:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array));
+			private const tabUIs:LinkableHashMap = registerLinkableChild(this, new LinkableHashMap(InspectionCommentImagesUI));
+			
+			private const firstTabPathWatcher:LinkableWatcher = registerDisposableChild(this, new LinkableWatcher());
+			private const tabsPathWatcher:LinkableWatcher = registerDisposableChild(this, new LinkableWatcher());
+			private const tabsChildListPathWatcher:LinkableWatcher = registerDisposableChild(this, new LinkableWatcher(null,updateTabMenu));
+			private const activeTabPathWatcher:LinkableWatcher = registerDisposableChild(this, new LinkableWatcher());
+			
+			
+			
+			private function handleFirstTabPathChange():void
+			{
+				firstTabPathWatcher.targetPath = firstTabPath.getSessionState() as Array;
+				var data:InspectionData = firstTabPathWatcher.target as InspectionData;
+				if(!data){
+					tabsPath.setSessionState(null);
+					activeTabPath.setSessionState(null);
+				}else{
+					var arr:Array = activeTabPath.getSessionState() as Array;
+					if(!arr){
+						// this sets the UI by calling activeTabPath callback
+						activeTabPath.setSessionState( WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap,data) );
+					}
+				}
+			}
+			
+			private function handleActiveTabPathChange():void{
+				if(tabUISection)
+					tabUISection.removeAllElements();
+				activeTabPathWatcher.targetPath = activeTabPath.getSessionState() as Array;
+				var hm:LinkableHashMap = getLinkableOwner(activeTabPathWatcher.target) as LinkableHashMap;
+				var name:String = hm.getName(activeTabPathWatcher.target);
+				pageMenu.selectedItem = name;
+				var followUpUi:InspectionCommentImagesUI = tabUIs.requestObject(name,InspectionCommentImagesUI,false);
+				tabUISection.addElement(followUpUi);
+				var fuData:FollowUpData =activeTabPathWatcher.target as FollowUpData;
+				followUpUi.load(fuData.comment,fuData.images);
+				
+			}
+			
+			[Bindable]
+			public var tabMenu:ArrayCollection = new ArrayCollection();
+			
+			
+			private function verifyPath(path:Array):Boolean
+			{
+				return !path || StandardLib.getArrayType(path) == String;
+			}
+			
+			private function handleTabsPathChange():void
+			{			
+				tabsPathWatcher.targetPath = tabsPath.getSessionState() as Array;
+				if(tabsPathWatcher.target){					
+					tabsChildListPathWatcher.target = (tabsPathWatcher.target as LinkableHashMap).childListCallbacks;
+					var names:Array = (tabsPathWatcher.target as LinkableHashMap).getNames();
+					tabMenu.source = names;
+					tabMenu.refresh();
+					if(activeTabPathWatcher.target){
+						var name:String = (tabsPathWatcher.target as LinkableHashMap).getName(activeTabPathWatcher.target);
+						pageMenu.selectedItem = name;
+					}
+				}					
+				else{
+					tabsChildListPathWatcher.dispose();
+					tabMenu.removeAll();
+				}
+			}
+			
+			protected function pageMenu_changeHandler(event:IndexChangeEvent):void
+			{				
+				var followUps:LinkableHashMap = tabsPathWatcher.target as LinkableHashMap;
+				var followUp:FollowUpData = followUps.getObject(pageMenu.selectedItem as String) as FollowUpData;
+				activeTabPath.setSessionState( WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap,followUp ));
+			}
+			
+			
+			protected function addTab_clickHandler(event:MouseEvent):void
+			{
+				var contents:ILinkableHashMap = tabsPathWatcher.target as ILinkableHashMap;
+				contents.requestObject("Follow Up" + tabMenu.length ,FollowUpData,false);
+			}
+			
+			private function updateTabMenu():void{
+				var followUps:ILinkableHashMap = tabsPathWatcher.target as ILinkableHashMap;
+				if(followUps.childListCallbacks.lastNameAdded){					
+					tabMenu.addItem(followUps.childListCallbacks.lastNameAdded);
+					tabUIs.requestObject(followUps.childListCallbacks.lastNameAdded,InspectionCommentImagesUI,false);
+				}
+				else if(followUps.childListCallbacks.lastNameRemoved){
+					tabMenu.removeItem(followUps.childListCallbacks.lastNameRemoved);
+					tabUIs.removeObject(followUps.childListCallbacks.lastNameRemoved);
+				}
+				
+			}
+			
+			protected function firstTab_clickHandler(event:MouseEvent ):void
+			{
+				var ins:InspectionData = firstTabPathWatcher.target as InspectionData;
+				activeTabPath.setSessionState( WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap,ins) );
+			}
+			
+		]]>
+	</fx:Script>
+	
+</s:Group>

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ehs:EHSTool xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			 xmlns:s="library://ns.adobe.com/flex/spark" 
+			 xmlns:mx="library://ns.adobe.com/flex/mx" 
+			 xmlns:ui="weave.ui.*" 
+			 xmlns:ehsUi="ehs.ui.*"  
+			 implements="weave.api.core.ILinkableObject,weave.api.ui.IVisTool" 
+			 creationComplete="group1_creationCompleteHandler(event)" xmlns:ehs="ehs.*" >
+	<s:Group id="formSection"  height="100%" minWidth="0" minHeight="0" >
+		
+	</s:Group>
+				
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			
+			import weave.api.WeaveAPI;
+			import weave.api.registerLinkableChild;
+			import weave.api.ui.IVisTool;
+			import weave.core.LinkableString;
+			import weave.data.CSVParser;
+			
+			
+			
+			
+			WeaveAPI.registerImplementation(IVisTool, TestTool, "Test Tool");
+			
+			private const uiParser:CSVParser = registerLinkableChild(this, new CSVParser(true),map);
+			
+			public const uiSource:LinkableString = registerLinkableChild(this, new LinkableString());
+			
+			//public const inspection:Inspection = registerLinkableChild(this, new Inspection());
+			//public const activeDataUI:LinkableString = registerLinkableChild(this, new LinkableString());	
+			
+			//[Bindable]
+			//public var linkData:ArrayCollection = new ArrayCollection();
+			
+			
+			
+			[Embed(source="/../ehs/csvSource.txt",mimeType="application/octet-stream")]
+			public var csvSource:Class;
+			
+			[Embed(source="/../ehs/testSource.txt",mimeType="application/octet-stream")]
+			public var uiClass:Class;
+			
+			/**
+			 * A constructor cannot be defined in MXML.
+			 * This function gets called as a result of calling the super class's constructor.
+			 * Classes that extend DraggablePanel can override this and call super.constructor().
+			 * Any code that should execute in the constructor can be put into this function.
+			 * This function should not be called directly.
+			 */
+			override protected function constructor():void
+			{
+				super.constructor();
+				//checkListSource.addImmediateCallback(this,updateToolSource);
+				uiSource.addImmediateCallback(this,mapUI);
+				panelX.value ="5%";
+				maximized.value = true;
+				panelBackgroundColor.value = 0x000000;
+				closeable.value = true;
+				
+				/*var b:ByteArray ;
+				
+				b= new csvSource();
+				checkListSource.value = b.readUTFBytes(b.length);
+				
+				
+				b = new uiClass();
+				uiSource.value = b.readUTFBytes(b.length);*/
+				//activeDataUI.addImmediateCallback(this,openCommentAndImageUI);
+			}
+			
+			
+			
+			
+			
+			
+			private function mapUI():void{
+				uiParser.parseCSV(uiSource.value);
+			}
+			
+			private var uiRows:Array = [];
+			
+			private function FillUI():void
+			{	
+				//csvRows = csvParser.convertRowsToRecords(csvParser.parseResult,3);
+				
+			}
+			private function map():void
+			{	
+				uiRows = uiParser.convertRowsToRecords(uiParser.parseResult,1);
+				
+				
+			}
+			
+			
+			
+			
+			
+			
+			
+			
+			public const keySection:InspectionKeyUI =  registerLinkableChild(this , new InspectionKeyUI());
+			public const reportSection:InspectionReportUI =  registerLinkableChild(this , new InspectionReportUI());
+			
+			
+			private var creationCompleted:Boolean = false;
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+						
+				creationCompleted = true;
+				
+			}
+			
+		
+			
+			
+			
+			
+			
+			
+			
+			
+			
+		]]>
+	</fx:Script>
+	<ui:ControlPanel>
+		
+	</ui:ControlPanel>
+	
+</ehs:EHSTool>

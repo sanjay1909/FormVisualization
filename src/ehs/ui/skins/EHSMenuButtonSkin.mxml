@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+-->
+
+
+<!--- The default skin class for a Spark ToggleButton component.  
+
+     @see spark.components.ToggleButton
+        
+      @langversion 3.0
+      @playerversion Flash 10
+      @playerversion AIR 1.5
+      @productversion Flex 4
+-->
+<s:SparkButtonSkin xmlns:fx="http://ns.adobe.com/mxml/2009" 
+                   xmlns:s="library://ns.adobe.com/flex/spark" 
+                   xmlns:fb="http://ns.adobe.com/flashbuilder/2009"
+                   minWidth="21" minHeight="21" 
+                   alpha.disabledStates="0.5">
+	<fx:Metadata>[HostComponent("spark.components.ButtonBarButton")]</fx:Metadata>
+    
+    <!-- host component -->
+    <fx:Script fb:purpose="styling">
+		<![CDATA[
+			import spark.components.ButtonBarButton;
+			
+			import ehs.EHS;
+			
+			import weave.api.getCallbackCollection;
+			import weave.api.linkBindableProperty;
+		
+		
+		
+        /* Define the skin elements that should not be colorized. 
+           For toggle button, the graphics are colorized but the label is not. */
+        static private const exclusions:Array = ["labelDisplay"];
+
+        /**
+         * @private
+         */    
+        override public function get colorizeExclusions():Array {return exclusions;}
+        
+        /**
+         * @private
+         */
+        override protected function initializationComplete():void
+        {
+            useChromeColor = true;
+            super.initializationComplete();			
+        }
+        
+		[Bindable]
+		public var buttonColor:uint = NaN;
+		
+		[Bindable]
+		public var selectedUpStateColor:uint =  NaN;
+		
+		[Bindable]
+		public var overStateColor:uint =  NaN;
+		
+		
+		override protected function createChildren():void{
+			super.createChildren();
+			linkBindableProperty(EHS.properties.menuButtonSettings.menuButtonColor,this,"buttonColor");
+			linkBindableProperty(EHS.properties.menuButtonSettings.menuButtonSelectedStateColor,this,"selectedUpStateColor");
+			linkBindableProperty(EHS.properties.menuButtonSettings.menuButtonOverStateColor,this,"overStateColor");
+			getCallbackCollection(EHS.properties.menuButtonSettings.menuTextFormat).addImmediateCallback(this,changeFontProperties,true);
+		}
+			
+			private function changeFontProperties():void{
+				EHS.properties.menuButtonSettings.menuTextFormat.copyToStyle((labelDisplay as Label));
+			}
+		
+		]]>
+		
+    </fx:Script>
+    
+    <!-- states -->
+	<s:states>
+		<s:State name="up" />
+		<s:State name="over" stateGroups="overStates" />
+		<s:State name="down" stateGroups="downStates" />
+		<s:State name="disabled" stateGroups="disabledStates" />
+		<s:State name="upAndSelected" stateGroups="selectedStates, selectedUpStates"  />
+		<s:State name="overAndSelected" stateGroups="overStates, selectedStates" />
+		<s:State name="downAndSelected" stateGroups="downStates, selectedStates" />
+		<s:State name="disabledAndSelected" stateGroups="selectedUpStates, disabledStates, selectedStates" />
+	</s:states>
+    
+   
+    
+    <!-- layer 1: fill -->
+    <!--- @private -->
+    <s:Rect id="fill" left="1" right="1" top="1" bottom="1" radiusX="2">
+        <s:fill>
+           <s:SolidColor color="{buttonColor}"
+						 color.selectedUpStates="{selectedUpStateColor}"
+						 color.overAndSelected="{overStateColor}"
+						 alpha="0.85"
+						 alpha.overAndSelected="1">
+			   
+		   </s:SolidColor>
+        </s:fill>
+    </s:Rect>
+    
+  
+   
+    
+    <!-- layer 2: border - put on top of the fill so it doesn't disappear when scale is less than 1 -->
+    <!--- @private -->
+	<s:Line  bottom="0" left="5" right="5">
+        <s:stroke>
+			<s:SolidColorStroke color="#444444" weight="1" caps="square"/>
+        </s:stroke>
+    </s:Line>
+    
+    <!-- layer 8: text -->
+    <!--- @copy spark.components.supportClasses.ButtonBase#labelDisplay -->
+    <s:Label id="labelDisplay" 
+             textAlign="left"
+             verticalAlign="middle"
+             maxDisplayedLines="1"
+             horizontalCenter="0" verticalCenter="1"
+             left="10" right="10" top="2" bottom="2">
+    </s:Label>
+    
+</s:SparkButtonSkin>

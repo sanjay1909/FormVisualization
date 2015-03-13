@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:DraggablePanel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:ui="weave.ui.*" 
+		 width="100%" height="100%" >
+	<fx:Script>
+		<![CDATA[
+			import weave.api.registerDisposableChild;
+			import weave.api.registerLinkableChild;
+			import weave.compiler.StandardLib;
+			import weave.core.LinkableVariable;
+			import weave.core.LinkableWatcher;
+			
+			public const targetPath:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array, verifyPath), handlePath);
+			private const watcher:LinkableWatcher = registerDisposableChild(this, new LinkableWatcher());
+			
+			private function verifyPath(path:Array):Boolean
+			{
+				return !path || StandardLib.getArrayType(path) == String;
+			} 
+			private function handlePath():void
+			{
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<s:VGroup  horizontalAlign="left" width="100%" gap="5">
+		<s:HGroup verticalAlign="middle">
+			<s:Label text="Flex UI Editor">
+				<s:filters>
+					<s:DropShadowFilter angle="90" blurX="5" blurY="5"
+										distance="2" alpha="3" color="0x000000"/>
+				</s:filters>
+			</s:Label>
+			<s:Label text=" Beta" fontFamily="Myriad" color="#FFFFFF" fontSize="8"/>		
+		</s:HGroup>
+	</s:VGroup>
+	<s:HGroup width="100%" height="100%">
+		
+		<!-- 
+		//********************//
+		//   SANDBOX          //
+		//********************//
+		-->
+		<s:BorderContainer id="sandbox">
+			
+		</s:BorderContainer>
+		<!-- 
+		//********************//
+		//   STYLE CONTROLS   //
+		//********************//
+		-->
+		<s:BorderContainer id="StyleUI">
+			
+		</s:BorderContainer>
+	</s:HGroup>
+</ui:DraggablePanel>

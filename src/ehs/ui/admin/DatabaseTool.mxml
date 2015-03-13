@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:DraggablePanel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:ui="weave.ui.*" 
+				   xmlns:admin="ehs.ui.admin.*" 
+				   width="500" height="300"
+				   escapeKeyClosesPanel="true" 
+				   creationComplete="calloutbutton1_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			import mx.rpc.AsyncResponder;
+			import mx.rpc.AsyncToken;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.ObjectUtil;
+			
+			import ehs.EHS;
+			import ehs.services.EHSAdminGateway;
+			
+			import print.IServerManager;
+			import print.ServerManager;
+			
+			import weave.ui.DraggablePanel;
+			
+			private var adG:EHSAdminGateway;
+			private var pm:ServerManager;
+			private var asycToken:AsyncToken;
+			private var responder:AsyncResponder;
+			
+			override protected function inConstructor():void
+			{
+				super.inConstructor();
+				panelWidth.value = "75%";
+				panelHeight.value = "75%";
+				panelX.value = "12.5%";
+				panelY.value = "12.5%";
+			}
+			
+			public static var instance:DatabaseTool;
+			
+			public static function openTool():void
+			{
+				instance = DraggablePanel.openStaticInstance(DatabaseTool);				
+			}
+			
+			public static function closeTool():void
+			{
+				if(instance)
+					instance.removePanel()	;			
+			}
+			
+			protected function calloutbutton1_creationCompleteHandler(event:FlexEvent):void
+			{
+				adG =EHS.properties.service;
+				pm =  WeaveAPI.ClassRegistry.getSingletonInstance(IServerManager) as ServerManager;
+				responder = new AsyncResponder(fillDatabaseTool,failure);
+				referesh();
+			
+			
+			//dataBaseView.resultDataGrid.dataProvider.addEventListener(CollectionEvent.COLLECTION_CHANGE,collectionListener);
+			}
+			
+			private function referesh():void{
+				asycToken = adG.getRecordsByInspector(pm.inspectorInfo.firstName.value +' '+pm.inspectorInfo.lastName.value);
+				asycToken.addResponder(responder);
+				
+			}
+		
+			
+			
+			
+			private function fillDatabaseTool(event:ResultEvent,token:AsyncToken = null):void{
+				/*if(event.message){
+				userHasAuthenticated = true;
+				}*/
+				trace(event.result);
+				dataBaseView.dataGridDP.source = event.result as Array;//databaseCalloutBtn.dp = event.result as ArrayCollection;
+			}
+			
+			private function failure(event:FaultEvent,token:AsyncToken = null):void{
+				trace( ObjectUtil.toString(event.fault));
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%" height="100%">
+		<s:Button label="Referesh" click="referesh();"/>
+		<admin:ResultSection id="dataBaseView" width="100%" height="100%"/>
+		
+	</s:VGroup>
+	
+</ui:DraggablePanel>

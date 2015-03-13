@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ehs:EHSTool xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:ui="weave.ui.*" 
+				   xmlns:ehsUi="ehs.ui.*"  
+				   xmlns:ehs="ehs.*"
+				   implements="weave.api.core.ILinkableObject,weave.api.ui.IVisTool" 
+				   title="Inspection Tool">
+	
+	<ehsUi:CustomPanel id="formPanel" left="10" right="10" bottom="10" top="10" creationPolicy="all"   >
+		<s:HGroup width="100%" height="100%" gap="0"  >
+			<s:Group height="100%" >
+				<s:Rect left="0" right="0" top="0" bottom="0">
+					<s:fill><s:SolidColor id="menuBgFill"   color="0x36373b" /></s:fill>					
+				</s:Rect>
+				<s:ButtonBar skinClass="ehs.ui.skins.EhsButtonBarSkin" id="pageMenu" dataProvider="{linkData}" change="pageMenu_changeHandler(event)"  />				
+			</s:Group>
+			<s:Group  width="100%" height="100%" >				
+				<s:Rect left="0" right="0" top="0" bottom="0">
+					<s:fill><s:SolidColor id="bgFill" color="0x202425" /></s:fill>					
+				</s:Rect>
+				<s:Scroller left="8" right="4" top="4" bottom="4" verticalScrollPolicy="auto" 
+							horizontalScrollPolicy="auto" >
+					<s:Group id="formSection"  height="100%" minWidth="0" minHeight="0" width="100%">
+						
+					</s:Group>
+				</s:Scroller>
+			</s:Group>
+			<!--<s:Button id="saveBtn" label="Save to Server" click="saveBtn_clickHandler(event)"/>-->
+		</s:HGroup>
+	</ehsUi:CustomPanel>
+	<fx:Script>
+		<![CDATA[
+			import flash.utils.ByteArray;
+			import flash.utils.Dictionary;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.IVisualElement;
+			import mx.rpc.AsyncToken;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.components.Alert;
+			import spark.events.IndexChangeEvent;
+			
+			import ehs.services.EHSAdminGateway;
+			import ehs.services.beans.LabSafetyRecord;
+			import ehs.ui.Inspection;
+			import ehs.ui.InspectionKeyUI;
+			import ehs.ui.InspectionReportUI;
+			import ehs.ui.InspectionSectionUI;
+			
+			import print.IServerManager;
+			import print.ServerManager;
+			
+			import weave.api.linkBindableProperty;
+			import weave.api.registerLinkableChild;
+			import weave.api.reportError;
+			import weave.api.ui.IVisTool;
+			import weave.compiler.StandardLib;
+			import weave.core.LinkableNumber;
+			import weave.core.WeaveArchive;
+			import weave.services.DelayedAsyncResponder;
+			
+			
+			
+			
+			WeaveAPI.ClassRegistry.registerImplementation(IVisTool, InspectionTool, "Inspection Tool");
+			
+			
+			public const inspection:Inspection = registerLinkableChild(this, new Inspection());
+			
+			// later give user the option to load CSV and design the UI based on that
+			[Embed(source="/../ehs/csvSource.txt",mimeType="application/octet-stream")]
+			private var csvSource:Class;				
+			private var csvAsBytes:ByteArray;				
+			public function loadDefaultCSV():void{
+				if(!csvAsBytes){
+					csvAsBytes = new csvSource();
+				}
+				var arr:Array = WeaveAPI.CSVParser.parseCSV(csvAsBytes.readUTFBytes(csvAsBytes.length));
+				var csvRows:Array =  WeaveAPI.CSVParser.convertRowsToRecords(arr);
+				inspection.data.setSessionState(csvRows);
+				
+			}
+			
+			
+			[Bindable]
+			public var linkData:ArrayCollection = new ArrayCollection();
+			
+			
+			private var _constructorCalled:Boolean = false; // true when constructor has been called
+			
+		
+			
+			/**
+			 * A constructor cannot be defined in MXML.
+			 * This function gets called as a result of calling the super class's constructor.
+			 * Classes that extend DraggablePanel can override this and call super.constructor().
+			 * Any code that should execute in the constructor can be put into this function.
+			 * This function should not be called directly.
+			 */
+			override protected function inConstructor():void
+			{
+				super.inConstructor();
+				var pm:ServerManager =  WeaveAPI.ClassRegistry.getSingletonInstance(IServerManager) as ServerManager;
+				pm.keyData = keySection.keyData;
+				pm.reportData = reportSection.reportData;
+				inspection.data.addGroupedCallback(this, fillUI);
+			}
+			
+			override protected function createChildren():void{				
+				super.createChildren();
+				linkBindableProperty(panelBackgroundColor,bgFill,"color");
+				linkBindableProperty(EHS.properties.menuBackgroundColor,menuBgFill,"color");
+				linkBindableProperty(formTitle,formPanel,"title");
+				linkBindableProperty(serverStatus,formPanel,"status");
+				if(!inspection.data.getSessionState()){
+					loadDefaultCSV();
+				}
+			}
+			
+			
+			private var uiFilled:Boolean = false;
+			private var _sectionName:String="";
+			private var menuSource:Array;
+			override public function fillUI():void
+			{	
+				super.fillUI();		
+				menuSource = ["Home"];
+				menuUIMap[0] = keySection;
+				keySection.pageNumber = 0;
+				var secNames:Array = inspection.sections.getNames();
+				for(var i:int = 0 ; i < secNames.length; i++){
+					var sectionUI:InspectionSectionUI = inspection.sections.getObject(secNames[i]) as InspectionSectionUI;
+					sectionUI.pageNumber = i + 1;
+					menuUIMap[i+1] = sectionUI;
+					menuSource.push(secNames[i]);
+				}
+				menuUIMap[secNames.length+1] = reportSection;
+				reportSection.pageNumber = secNames.length+1;
+				menuSource.push("Status");	
+				linkData.source = menuSource;
+				
+				// while loading from seesion state, we need to execute change page, that why true is required
+				currentPage.addImmediateCallback(this,changePage,true);
+				createControlPanel();
+				//getCallbackCollection(keySection.keyData).addGroupedCallback(this,generateTitle);
+				
+				uiFilled = true;
+			}
+			
+			
+			
+			private function generateTitle():void{
+				var pm:ServerManager =  WeaveAPI.ClassRegistry.getSingletonInstance(IServerManager) as ServerManager;
+				formTitle.value =  pm.getFileName();
+							
+			}
+			
+			
+			public const keySection:InspectionKeyUI =  registerLinkableChild(this , new InspectionKeyUI());
+			public const reportSection:InspectionReportUI =  registerLinkableChild(this , new InspectionReportUI());
+			
+			private var menuUIMap:Dictionary = new Dictionary();
+			
+			
+			public const currentPage:LinkableNumber = registerLinkableChild(this,new LinkableNumber(0));
+			private var currentSection:IVisualElement = null;
+			private var fileSaved:Boolean = false;
+			
+			
+			private var pageIndex:int = 0;
+			private function changePage():void{
+				if(!uiFilled){
+					callLater(changePage);
+					return;
+				}
+				if(currentPage.value != 0 ){
+					if(!EHS.properties.editingMode.value){
+						if(keySection.keyData.completed){ 
+							if(formTitle.value == ( WeaveAPI.ClassRegistry.getSingletonInstance(IServerManager) as ServerManager).DEFAULT_NAME){
+								generateTitle();
+							}						
+						}
+						else{
+							Alert.show("Key Sections Incomplete");
+							currentPage.value = 0;
+							return;
+						}
+					}					
+					
+				}
+				if(currentPage.value >= 0){
+					if(currentSection)formSection.removeElement(currentSection);
+					var sectionUI:IVisualElement =  menuUIMap[currentPage.value];
+					currentSection = sectionUI;	
+					
+					formSection.addElement(sectionUI);
+					pageMenu.selectedIndex = currentPage.value;
+					pageIndex = currentPage.value;					
+				}				
+			}
+			
+			
+			
+			
+			private function saveSuccessHandler(e:ResultEvent,newFile:Boolean):void{
+				serverStatus.value = String(e.result) + " [" +menuSource[currentPage.value]  +"]";
+			}
+			
+			private function saveFailureHandler(e:FaultEvent,newFile:Boolean):void{
+				serverStatus.value = 'failed';
+			}
+			
+			protected function saveBtn_clickHandler(event:MouseEvent):void
+			{
+				var pm:ServerManager =  WeaveAPI.ClassRegistry.getSingletonInstance(IServerManager) as ServerManager;
+				pm.saveSessionStateToServer();
+			}
+			
+			// saving here is important 
+			// so that while navigating in seesion state the saveing on the server wont get called
+			protected function pageMenu_changeHandler(event:IndexChangeEvent):void
+			{
+				currentPage.value  = event.newIndex;
+				if(EHS.properties.autoSave.value){
+					if(currentPage.value > 0 ){
+						var pm:ServerManager =  WeaveAPI.ClassRegistry.getSingletonInstance(IServerManager) as ServerManager;
+						var asyncToken:AsyncToken =  pm.saveSessionStateToServer();
+						
+						if(asyncToken)asyncToken.addResponder(new DelayedAsyncResponder(saveSuccessHandler, saveFailureHandler));
+					}
+						
+				}
+				
+			}
+			
+			
+			
+		]]>
+	</fx:Script>
+	<ui:ControlPanel>
+		
+	</ui:ControlPanel>
+	
+</ehs:EHSTool>

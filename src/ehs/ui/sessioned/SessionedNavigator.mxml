@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 implements="weave.api.core.ILinkableObject" width="100%" height="100%">
+		
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.core.IVisualElement;
+			
+			import spark.events.IndexChangeEvent;
+			import spark.layouts.HorizontalLayout;
+			import spark.layouts.VerticalLayout;
+			
+			import weave.api.registerLinkableChild;
+			import weave.api.reportError;
+			import weave.api.core.ILinkableObject;
+			import weave.core.LinkableHashMap;
+			import weave.core.LinkableNumber;
+			import weave.core.LinkableString;
+			
+			private var _constructorCalled:Boolean = false; // true when constructor has been called
+			override protected function resourcesChanged():void
+			{
+				super.resourcesChanged();
+				if (!_constructorCalled) // avoid calling constructor twice
+				{
+					_constructorCalled = true;
+					constructor();
+				}
+			}
+			
+			/**
+			 * A constructor cannot be defined in MXML.
+			 * This function gets called as a result of calling the super class's constructor.
+			 * Classes that extend DraggablePanel can override this and call super.constructor().
+			 * Any code that should execute in the constructor can be put into this function.
+			 * This function should not be called directly.
+			 */
+			protected function constructor():void
+			{
+				hasFocusableChildren = false;
+				navigatorContents.childListCallbacks.addImmediateCallback(this,updateMenu);
+				position.addImmediateCallback(this,postionMenu,true);
+				currentPage.addImmediateCallback(this,changePage,false);				
+			}
+			
+			override protected function childrenCreated():void{
+				super.childrenCreated();					
+			}
+			
+			[Bindable]
+			public var linkData:ArrayCollection = new ArrayCollection();
+			
+						
+			public const currentPage:LinkableString = registerLinkableChild(this,new LinkableString());			
+			public const position:LinkableString = registerLinkableChild(this,new LinkableString("top"));
+			
+						
+			public const contentBackground:LinkableNumber = registerLinkableChild(this, new LinkableNumber(0xffffff),updateContentColor,true);//0x202425 - inspectionTool content				
+			public const menuBackground:LinkableNumber = registerLinkableChild(this, new LinkableNumber(0xffffff),updateMenuColor,true);//0x36373b - inspectionTool menu
+			
+			
+			
+			public const navigatorContents:LinkableHashMap = registerLinkableChild(this, new LinkableHashMap());
+			
+			
+			private function updateMenuColor():void{
+				menuBgFill.color = menuBackground.value;
+			}
+			
+			private function updateContentColor():void{
+				bgFill.color = contentBackground.value;
+			}
+			
+			private var currentSection:IVisualElement = null;
+			
+			private const nameClassMap:Dictionary = new Dictionary(true);
+			public function requestNaviagtorContent(name:String , sessionableUI:Class):ILinkableObject{
+				nameClassMap[name] = sessionableUI;
+				return navigatorContents.requestObject(name,sessionableUI,false);
+			}
+			
+			public function removeAll():void{
+				navigatorContents.removeAllObjects();
+				currentPage.value = null;
+				currentSection = null;
+				formSection.removeAllElements();
+			}
+			
+			private function changePage():void{
+				if(currentPage.value && currentPage.value.length > 0){
+					var sectionUI:IVisualElement =  navigatorContents.requestObject(currentPage.value,nameClassMap[currentPage.value],false) as IVisualElement;
+					addNavigatorContent(sectionUI);
+				}			
+			}
+			
+			
+			private function addNavigatorContent(sectionUI:IVisualElement){
+				if(!sectionUI){
+					reportError("UI Element is not mapped for " + currentPage.value);
+					return;
+				}
+				
+				if(currentSection){
+					formSection.removeElement(currentSection);
+				}					
+				currentSection = sectionUI;					
+				formSection.addElement(sectionUI);
+				if(linkData.length > 1){
+					if(pageMenu.selectedItem != currentPage.value)pageMenu.selectedItem = currentPage.value;
+				}
+			}
+			
+			private function  postionMenu():void{
+				if(position.value == "top")
+					this.layout = new VerticalLayout()
+				else if(position.value == "left")
+					this.layout = new HorizontalLayout();
+			}
+			
+			
+			private function updateMenu():void{
+				if(navigatorContents.childListCallbacks.lastNameAdded){					
+					linkData.addItem(navigatorContents.childListCallbacks.lastNameAdded);
+					//currentPage.value = navigatorContents.childListCallbacks.lastNameAdded;
+					addNavigatorContent(navigatorContents.childListCallbacks.lastObjectAdded as IVisualElement);
+					if(linkData.length > 1){
+						pageMenuHolder.includeInLayout = true;
+						pageMenuHolder.visible = true;
+					}
+				}
+				else if(navigatorContents.childListCallbacks.lastNameRemoved){
+					linkData.removeItem(navigatorContents.childListCallbacks.lastNameRemoved);
+					if(linkData.length <= 1){
+						pageMenuHolder.includeInLayout = false;
+						pageMenuHolder.visible = false;
+					}					
+					delete nameClassMap[navigatorContents.childListCallbacks.lastNameRemoved];
+				}
+					
+			}
+			
+			//sessioned object is updated here
+			protected function pageMenu_changeHandler(event:IndexChangeEvent):void
+			{				
+				currentPage.value  = (event.currentTarget as ButtonBar).selectedItem as String;
+			}
+			//skinClass="ehs.ui.skins.EhsButtonBarSkin" 
+			
+		]]>
+	</fx:Script>
+	
+	
+	<s:Group height="100%" width="100%"  id="pageMenuHolder" visible="false" includeInLayout="false">
+		<s:Rect left="0" right="0" top="0" bottom="0">
+			<s:fill><s:SolidColor id="menuBgFill"     /></s:fill>					
+		</s:Rect>
+		<s:ButtonBar id="pageMenu" dataProvider="{linkData}" change="pageMenu_changeHandler(event)" 
+					 left="4" right="4" />				
+	</s:Group>
+	<s:Group  width="100%" height="100%" >				
+		<s:Rect left="0" right="0" top="0" bottom="0">
+			<s:fill><s:SolidColor id="bgFill"  /></s:fill>					
+		</s:Rect>
+		<s:Scroller left="8" right="4" top="4" bottom="4" verticalScrollPolicy="auto" 
+					horizontalScrollPolicy="auto" >
+			<s:Group id="formSection"  height="100%" width="100%" minWidth="0" minHeight="0"  >
+				
+			</s:Group>
+		</s:Scroller>
+	</s:Group>
+	
+</s:Group>

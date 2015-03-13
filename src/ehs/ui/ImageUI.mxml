@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 implements="weave.api.core.ILinkableObject"  
+		 creationComplete="group1_creationCompleteHandler(event)" >
+	
+	<!--
+	width="100%" height="{ imgControls.height + imageHolder.height + 80}" 
+	click="titlewindow1_clickHandler(event)" title="{imageName.text}" -->
+	
+	<s:Rect id="border" left="0" right="0" top="0" bottom="0" radiusX="4" radiusY="4">
+		<s:stroke>
+			<s:SolidColorStroke id="borderStroke" weight="1" color="0x005500"/>            
+		</s:stroke>
+	</s:Rect>
+	<fx:Script>
+		<![CDATA[
+			import mx.core.IVisualElementContainer;
+			import mx.events.FlexEvent;
+			
+			import weave.api.getSessionState;
+			import weave.api.core.ILinkableObject;
+			import weave.core.LinkableVariable;
+			
+			
+			private var _imageAsBytes:LinkableVariable 
+			public function set imageAsBytes(value:LinkableVariable):void
+			{
+				_imageAsBytes = value;
+				_imageAsBytes.addImmediateCallback(this,addBytesToLoader);
+			}
+			
+			public function get imageAsBytes():LinkableVariable
+			{
+				return _imageAsBytes;
+			}
+			
+			
+
+			
+			
+			protected function image_closeHandler(e:Event):void
+			{				
+				(parent as IVisualElementContainer).removeElement(this);
+			}
+			
+			
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+			private function addBytesToLoader():void{				
+				if(getSessionState(_imageAsBytes)){
+					var loader:Loader =  new Loader();
+					loader.loadBytes(getSessionState(_imageAsBytes) as  ByteArray);
+					//fileTitle = fileReference.name
+					loader.contentLoaderInfo.addEventListener(Event.COMPLETE, createImage); 
+				}				
+			}
+			
+			private var imageWidth:Number = 200;
+			private var imageHeight:Number= 200;
+			
+			private function createImage(e:Event):void{					
+				var imgFileLoader:Loader = Loader(e.target.loader);				
+				image.source = imgFileLoader;				
+				var imageOriginalWidth:Number = imgFileLoader.width;
+				var imageOriginalHeight:Number = imgFileLoader.height;
+				if(imageOriginalWidth > imageOriginalHeight){
+					imgFileLoader.content.width = imageWidth;
+					imgFileLoader.content.height =imgFileLoader.height *  imageWidth / imageOriginalWidth ;
+				}
+				else{
+					imgFileLoader.content.height = imageHeight;
+					imgFileLoader.content.width =imgFileLoader.width *  imageHeight / imageOriginalHeight ;
+				}				
+				image.width  = imgFileLoader.content.width;
+				image.height = imgFileLoader.content.height;
+				
+				
+				imgFileLoader.contentLoaderInfo.removeEventListener(Event.COMPLETE, createImage); 
+				
+			}
+			
+		]]>
+	</fx:Script>
+	
+	
+	
+	<s:VGroup left="2" right="4" top="2" bottom="2">
+		<s:TextInput id="imageLabel" text=""  textAlign="center" prompt="Image Name" />	
+		<s:VGroup  id="imageHolder" left="2" right="2" top="2" bottom="2"  >	
+			
+			
+			<s:Image id="image" />
+			<s:Label  text="{imageLabel.text}"/>
+			
+		</s:VGroup>
+	</s:VGroup>
+	<s:Button id="closeButton" label="x"  width="20%" right="0"  />	
+</s:Group>

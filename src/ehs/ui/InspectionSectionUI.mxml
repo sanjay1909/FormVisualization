@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ui="ehs.ui.*"  
+				 width="100%" 
+				 implements="ehs.ui.IInspectionUI" 
+				 >
+	<s:Rect left="4" right="4" top="4" bottom="4">
+		<s:fill>
+			<s:SolidColor id="bgFill" color="0xffffff"/>
+		</s:fill>	
+		
+	</s:Rect>
+	<fx:Script>
+		<![CDATA[
+			import mx.core.IVisualElement;
+			import mx.events.FlexEvent;
+			
+			import ehs.EHS;
+			
+			import print.IServerManager;
+			import print.ServerManager;
+			
+			import weave.api.getCallbackCollection;
+			import weave.api.linkBindableProperty;
+			import weave.api.registerLinkableChild;
+			import weave.core.LinkableHashMap;
+			import weave.core.LinkableString;
+			import weave.core.LinkableVariable;
+			
+			
+			private var _constructorCalled:Boolean = false; // true when constructor has been called
+			/**
+			 *  This method is called when a UIComponent is constructed,
+			 *  and again whenever the ResourceManager dispatches
+			 *  a <code>"change"</code> Event to indicate
+			 *  that the localized resources have changed in some way.
+			 */
+			override protected function resourcesChanged():void
+			{
+				super.resourcesChanged();
+				if (!_constructorCalled) // avoid calling constructor twice
+				{
+					_constructorCalled = true;
+					constructor();
+				}
+			}
+			
+			/**
+			 * A constructor cannot be defined in MXML.
+			 * This function gets called as a result of calling the super class's constructor.
+			 * Classes that extend DraggablePanel can override this and call super.constructor().
+			 * Any code that should execute in the constructor can be put into this function.
+			 * This function should not be called directly.
+			 */
+			protected function constructor():void
+			{
+				
+				
+				uiData.addImmediateCallback(this,createDataUI);
+				checklists.childListCallbacks.addImmediateCallback(this,updateDataUI);
+				getCallbackCollection(EHS.properties.sectionSettings.headingTextFormat).addImmediateCallback(this,changeHeadingFont);
+				comment.addImmediateCallback(this,addToPrint);
+				
+			}
+			
+			override protected function childrenCreated():void
+			{
+				super.childrenCreated();
+				
+				linkBindableProperty(EHS.properties.sectionSettings.backGroundColor,bgFill,"color");
+				commentImageHolder.load(comment,images);
+				
+				
+				
+				
+			}
+			
+			
+			[Bindable]
+			public var sectiontitle:String = "";
+			
+			public var pageNumber:int;
+			
+			public const uiData:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array));
+			
+			
+			
+			public function get data():LinkableVariable{
+				
+				return uiData;
+			}
+			private var _uiName:String;
+			public function get uiName():String{
+				return _uiName;
+			}
+			public function set uiName(name:String):void{
+				_uiName = name;
+			}
+			
+			public const checklists:LinkableHashMap = registerLinkableChild(this , new LinkableHashMap(InspectionDataUI));
+			public const comment:LinkableString = registerLinkableChild(this, new LinkableString());
+			public const images:LinkableHashMap = registerLinkableChild(this, new LinkableHashMap(LinkableString));
+			
+			
+			//need to add comment
+			private function addToPrint():void{
+				var pm:IServerManager =  WeaveAPI.ClassRegistry.getSingletonInstance(IServerManager);
+				if( comment.value && comment.value.length>0){
+					// need for section where datas are not filled but comments are used
+					(pm as ServerManager).requestDataCollection(sectiontitle);
+					pm.addSectionToComment(sectiontitle,{title:sectiontitle,comment:comment,images:images});
+				}
+				else{
+					pm.removeSectionToComment(sectiontitle);
+				}				
+			}
+			
+			
+			
+			
+			
+			
+			
+			private var currentRow:Object;
+			private function createDataUI():void{				
+				var rows:Array = uiData.getSessionState() as Array;
+				if(rows && rows.length>0){
+					var uniqueName:String;
+					for(var j:int = 0; j <rows.length;j++){
+						uniqueName = sectiontitle + "::inspectionDataUI::"+j;
+						currentRow = rows[j];
+						var insUI:InspectionDataUI = checklists.requestObject(uniqueName,InspectionDataUI,false) as InspectionDataUI;
+						insUI.questionNumber = j+1;
+					}
+				}						
+			}
+			
+			
+			
+			private function updateDataUI():void{
+				if(checklists.childListCallbacks.lastNameAdded){
+					var ui:IInspectionUI = checklists.childListCallbacks.lastObjectAdded as IInspectionUI;
+					ui.data.setSessionState(currentRow);
+					DataHolder.addElement(ui as IVisualElement);
+				}				
+			}
+			
+			private function changeHeadingFont():void{
+				EHS.properties.sectionSettings.headingTextFormat.copyToStyle(heading as Label);
+			}
+			
+			
+			
+			protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				EHS.properties.editingMode.addImmediateCallback(this,setUIVisibility,true);
+			}
+			
+			private function setUIVisibility():void{
+				if(EHS.properties.editingMode.value){
+					editHolder.enabled = false;
+					editHolder.visible = false;
+					editHolder.includeInLayout = false;
+					yesNoNA.enabled = false;
+					yesNoNA.visible = false;
+					yesNoNA.includeInLayout = false;
+				}else{
+					editHolder.enabled = true;
+					editHolder.visible = true;
+					editHolder.includeInLayout = true;
+					yesNoNA.enabled = true;
+					yesNoNA.visible = true;
+					yesNoNA.includeInLayout = true;
+				}
+			}
+			
+			
+			
+			
+			/*[Bindable]
+			private var insDatas:ArrayCollection = new ArrayCollection();
+			public const datas:LinkableHashMap = registerLinkableChild(this , new LinkableHashMap(InspectionData));
+			private function createData():void{				
+				var rows:Array = uiData.getSessionState() as Array;
+				if(rows && rows.length>0){
+					var uniqueName:String;
+					for(var j:int = 0; j <rows.length;j++){
+						uniqueName = sectiontitle + "::inspectionData::"+j;
+						currentRow = rows[j];
+						var insUI:InspectionData = datas.requestObject(uniqueName,InspectionData,false) as InspectionData;
+						//insUI.questionNumber = j+1;
+					}
+				}						
+			}
+			private function pinWithUI():void{
+				if(datas.childListCallbacks.lastObjectAdded){
+					setSessionState(datas.childListCallbacks.lastObjectAdded,currentRow);
+					insDatas.addItem(datas.childListCallbacks.lastObjectAdded);
+				}
+				if(datas.childListCallbacks.lastObjectRemoved){
+					insDatas.removeItem(datas.childListCallbacks.lastObjectRemoved);
+				}
+			}
+			
+			public const currentItem:LinkableVariable = registerLinkableChild(this, new LinkableVariable(InspectionDataRenderer),updateCallout);
+			
+			protected function list1_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}*/
+			
+			/*private function updateCallout():void{
+				var ui:InspectionDataRenderer = currentItem.getSessionState() as InspectionDataRenderer;
+				if(ui.
+			}*/
+			
+		]]>
+	</fx:Script>
+	<s:VGroup  left="24" right="24" top="16" bottom="16">
+		<s:Label id="heading" text="{sectiontitle}" fontSize="16" fontWeight="bold"/>
+		<s:Spacer/>
+		<s:Label id="yesNoNA" text="Yes  No   NA" fontSize="12"/>			
+		<s:VGroup width="100%" id="DataHolder"/>		
+		<s:Spacer/>
+		<s:Group  width="100%" height="100%"  >
+			<s:Rect id="border" left="0" right="0" top="0" bottom="0" radiusX="4" radiusY="4">
+				<s:stroke>
+					<s:SolidColorStroke id="borderStroke" weight="1" color="0x00ff00"/>            
+				</s:stroke>
+			</s:Rect>
+			<s:VGroup left="2" right="2" top="2" bottom="2" creationComplete="vgroup1_creationCompleteHandler(event)" id="editHolder">
+				<ui:InspectionCommentImagesUI id="commentImageHolder" width="100%" height="100%"/>
+			</s:VGroup>
+		</s:Group>
+		
+	</s:VGroup>
+	
+</s:Group>

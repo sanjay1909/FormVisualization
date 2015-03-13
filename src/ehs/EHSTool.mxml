@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:DraggablePanel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:ui="weave.ui.*" 
+				  >
+	<fx:Script>
+		<![CDATA[
+			import weave.api.registerLinkableChild;
+			import weave.core.LinkableString;
+			
+			
+			public const formTitle:LinkableString = registerLinkableChild(this, new LinkableString("Safety Form"));		
+			protected const serverStatus:LinkableString = registerLinkableChild(this, new LinkableString("Not Saved"));		
+			
+			
+			
+			
+			
+			
+			
+			override protected function inConstructor():void
+			{
+				super.inConstructor();
+				
+				panelX.value ="5%";
+				maximized.value = true;
+				panelBackgroundColor.value = 0x000000;
+				closeable.value = true;
+			}
+			
+			
+			//protected var windowEditor:ToolSettingsEditor;
+			//protected var menuEditor:MenuButtonSettingsEditor;
+			//protected var sectionEditor:SectionSettingsEditor;
+			//protected var sourceEditor:SourceEditor;
+			
+			
+			protected var csvRows:Array = [];
+			public /*Abstract */ function fillUI():void{
+			}
+			protected function createControlPanel():void{
+				
+				
+				/*if(!menuEditor){
+					menuEditor = new MenuButtonSettingsEditor();
+					menuEditor.target =  this;
+				}
+				
+				if(!sectionEditor){
+					sectionEditor = new SectionSettingsEditor();
+					sectionEditor.target = this;
+				}*/
+				
+				/*if(!sourceEditor){
+					sourceEditor = new SourceEditor();
+					sourceEditor.target = this;
+				}*/
+				
+				
+				/*if (controlPanel)
+				{
+					controlPanel.children = [menuEditor,sectionEditor];
+				}*/
+			}
+			
+			
+			
+		]]>
+	</fx:Script>
+	
+</ui:DraggablePanel>

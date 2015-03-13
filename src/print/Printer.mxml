@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:DraggablePanel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:ui="weave.ui.*" 
+				   creationComplete="draggablepanel1_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			import mx.printing.FlexPrintJob;
+			import mx.printing.FlexPrintJobScaleType;
+			
+			import weave.api.registerLinkableChild;
+			import weave.core.LinkableHashMap;
+			import weave.core.UIUtils;
+			import weave.ui.DraggablePanel;
+			
+			override protected function inConstructor():void
+			{
+				super.inConstructor();
+				this.panelBackgroundColor.value = 0x000000;
+				
+			}
+			
+			/*public static var instance:Printer;
+			
+			public static function openTool():void
+			{
+				instance = DraggablePanel.openStaticInstance(Printer);				
+			}
+			
+			public static function closeTool():void
+			{
+				if(instance)
+					instance.removePanel()	;			
+			}*/
+
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				// remove contents from scroller section
+				printSections.gap = 0;
+				previewHolder.removeElement(printSections);
+				
+				// Transfer them to new container for printing
+				printHolder.addElement(printSections);
+				scroll.visible = false;
+				scroll.includeInLayout = false;
+				printHolder.includeInLayout = true;
+				printHolder.visible = true;
+				// call printer
+				var myPrintJob:FlexPrintJob = new FlexPrintJob();
+				myPrintJob.printAsBitmap =false;
+				if(myPrintJob.start() != true){
+					return;
+				}
+				myPrintJob.addObject(printSections,FlexPrintJobScaleType.NONE);
+				myPrintJob.send();
+				// revert the steps
+				printSections.gap = 12;
+				printHolder.removeElement(printSections);
+				previewHolder.addElement(printSections);
+				scroll.visible = true;
+				scroll.includeInLayout = true;
+				printHolder.includeInLayout = false;
+				printHolder.visible = false;
+								
+			}
+			
+			public const pages:LinkableHashMap = registerLinkableChild(this, new LinkableHashMap(Page));		
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				var pg:Page;
+				if(event.currentTarget == frontPage){
+					pg =pages.requestObject("",LetterHead,false);
+					printSections.addElement(pg);
+				}
+				else if(event.currentTarget == KeySection){
+					pg =pages.requestObject("",ReportSection,false);
+					printSections.addElement(pg);
+				}
+			}
+			
+			protected function draggablepanel1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				UIUtils.linkDisplayObjects(printSections,pages);
+			}
+			
+		]]>
+	</fx:Script>
+	<s:VGroup width="612" height="100%" horizontalAlign="center">
+		<s:HGroup>
+			<s:Button id="frontPage" label="Add Front Page" click="button2_clickHandler(event)"/>
+			<s:Button id="KeySection" label="Add Key Sections" click="button2_clickHandler(event)"/>
+			<s:Button label="print" click="button1_clickHandler(event)"/>
+		</s:HGroup>
+		<s:Scroller  left="4" right="4" top="4" bottom="4" id="scroll" verticalScrollPolicy="auto">
+			<s:Group width="612" height="792" id="previewHolder">
+				<s:VGroup id="printSections"  width="612"  />
+			</s:Group>
+		</s:Scroller>	
+		<s:Group id="printHolder"  width="612" visible="false" includeInLayout="false"/>
+	</s:VGroup>
+</ui:DraggablePanel>

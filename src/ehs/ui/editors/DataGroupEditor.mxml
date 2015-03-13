@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:ControlPanel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ui="weave.ui.*"
+				 implements="weave.api.core.ILinkableObject"
+				 creationComplete="controlpanel1_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			
+			import ehs.EHS;
+			
+			import weave.Weave;
+			import weave.api.linkBindableProperty;
+			import weave.api.registerLinkableChild;
+			import weave.api.core.ILinkableObject;
+			import weave.api.core.ILinkableVariable;
+			import weave.core.LinkableNumber;
+			import weave.core.LinkableVariable;
+			import weave.core.LinkableWatcher;
+			import weave.core.SessionManager;
+			import weave.ui.DraggablePanel;
+			
+						
+			public static var instance:DataGroupEditor;
+			
+			public static function openTool():void
+			{
+				instance = DraggablePanel.openStaticInstance(DataGroupEditor);				
+			}
+			
+			public static function closeTool():void
+			{
+				if(instance){					
+					instance.removePanel()	;	
+				}
+							
+			}
+			
+						
+			/*private const verticalGapWatcher:LinkableWatcher = registerLinkableChild(this, new LinkableWatcher(LinkableNumber));
+			private const horizontalGapWatcher:LinkableWatcher = registerLinkableChild(this,  new LinkableWatcher(LinkableNumber));
+			private const columnCountWatcher:LinkableWatcher = registerLinkableChild(this,  new LinkableWatcher(LinkableNumber));
+			private const rowCountWatcher:LinkableWatcher = registerLinkableChild(this,  new LinkableWatcher(LinkableNumber));*/
+			
+			
+			protected function controlpanel1_creationCompleteHandler(event:FlexEvent):void
+			{
+				/*linkBindableProperty(verticalGapWatcher,vGapSlider,'value');				
+				linkBindableProperty(horizontalGapWatcher,hGapSlider,'value');
+				linkBindableProperty(columnCountWatcher,colCountSlider,'value');*/
+				//linkBindableProperty(verticalGapWatcher,vGapSlider,'value');
+				
+				linkBindableProperty(EHS.properties.columnCount,colCountSlider,'value');
+				linkBindableProperty(EHS.properties.verticalGap,vGapSlider,'value');
+				linkBindableProperty(EHS.properties.horizontalGap,hGapSlider,'value');
+			}
+			
+			private var sm:SessionManager = WeaveAPI.SessionManager as SessionManager;
+			
+			//public var verticalGap:LinkableNumber = Weave.root.requestObject("vGap",LinkableNumber,false);
+			
+			/*public const verticalGapPath:LinkableVariable = registerLinkableChild(this,new LinkableVariable(Array),handleVerticalGapPath);
+			public const horizontalGapPath:LinkableVariable = registerLinkableChild(this,new LinkableVariable(Array),handleHorizontalGapPath);
+			public const colCountPath:LinkableVariable = registerLinkableChild(this,new LinkableVariable(Array),handleColCountPath);*/
+			//public const rowCountPath:LinkableVariable = registerLinkableChild(this,new LinkableVariable(Array));
+			
+			/*private function handleVerticalGapPath():void{				
+				var obj:ILinkableObject = sm.getObject(WeaveAPI.globalHashMap, verticalGapPath.getSessionState() as Array);
+				if(obj)
+					linkBindableProperty(obj as ILinkableVariable,vGapSlider,'value');					
+			}
+			
+			private function handleHorizontalGapPath():void{				
+				var obj:ILinkableObject = sm.getObject(WeaveAPI.globalHashMap, horizontalGapPath.getSessionState() as Array);
+				if(obj)
+					linkBindableProperty(obj as ILinkableVariable,hGapSlider,'value');					
+			}
+			private function handleColCountPath():void{				
+				var obj:ILinkableObject = sm.getObject(WeaveAPI.globalHashMap, colCountPath.getSessionState() as Array);
+				if(obj)
+					linkBindableProperty(obj as ILinkableVariable,colCountSlider,'value');					
+			}*/
+			/*private function handleRowCountPath():void{				
+				var obj:ILinkableObject = sm.getObject(WeaveAPI.globalHashMap, rowCountPath);
+				linkBindableProperty(obj,vGapSlider,'value');					
+			}
+			*/
+			
+			public function bind(vGap:LinkableNumber,hGap:LinkableNumber,colCount:LinkableNumber):void{
+				
+				//linkBindableProperty(verticalGap,vGapSlider,'value');
+				/*var path:Array ;
+				path = WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap, vGap);
+				verticalGapPath.setSessionState(path);
+				path = WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap, hGap);
+				horizontalGapPath.setSessionState(path);
+				path = WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap, colCount);
+				colCountPath.setSessionState(path);*/
+			}
+			
+		]]>
+	</fx:Script>
+	<s:VGroup gap="8">
+		<s:HGroup gap="16" width="100%" verticalAlign="middle">
+			<s:HGroup>
+				<s:Label text="Horizontal Gap"/>
+				<s:HSlider id="hGapSlider" width="100%"  minimum="0" maximum="40"  />
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text="Vertical Gap"/>
+				<s:HSlider id="vGapSlider"  width="100%" minimum="0" maximum="20"  />
+			</s:HGroup>
+		</s:HGroup>
+		<s:HGroup gap="16" width="100%" verticalAlign="middle">
+			<s:HGroup>
+				<s:Label text="Column Count"/>
+				<s:HSlider id="colCountSlider"  width="100%"  minimum="1" maximum="4"    />
+			</s:HGroup>
+			<!--<s:HSlider id="rowCountSlider" label="rowCount" width="100%"
+					   minimum="2" maximum="20" step="1" value="4" />-->
+			<!--<s:HSlider id="colCountSlider"  width="100%"  minimum="1" maximum="4"    />-->
+		</s:HGroup>
+	</s:VGroup>
+	
+</ui:ControlPanel>

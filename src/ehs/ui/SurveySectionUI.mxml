@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:ui="ehs.ui.*" 
+		 width="100%" height="100%"
+		 implements="weave.api.core.ILinkableObject,weave.api.core.IDisposableObject" 
+		 xmlns:ui1="weave.ui.*" xmlns:tool="weave.visualization.tool.*" 
+		 >
+	<s:Rect left="4" right="4" top="4" bottom="4">
+		<s:fill>
+			<s:SolidColor id="bgFill" color="0xffffff"/>
+		</s:fill>	
+		
+	</s:Rect>
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			
+			import ehs.EHS;
+			
+			import weave.api.linkBindableProperty;
+			import weave.api.registerDisposableChild;
+			import weave.api.unlinkBindableProperty;
+			
+			
+			
+			override protected function childrenCreated():void
+			{
+				super.childrenCreated();
+				
+				linkBindableProperty(EHS.properties.sectionSettings.backGroundColor,bgFill,"color");
+				//registerDisposableChild(this,controller);
+				ehs.ui.SurveyDataRenderer;
+				//controller.itemRendererClassName.value = 'ehs.ui.SurveyDataRenderer';				
+				//controller.editable = EHS.properties.editingMode;
+				//ontroller.hashMap = sec.checklist;
+			}
+			
+			public function dispose():void{
+				EHS.properties.editingMode.removeCallback(setUIVisibility);
+				unlinkBindableProperty(EHS.properties.sectionSettings.backGroundColor,bgFill,"color");
+			}
+			
+			
+			
+			[Bindable]
+			public var sectiontitle:String = "";
+			
+			public var pageNumber:int;
+			
+			
+			
+			
+			protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				EHS.properties.editingMode.addImmediateCallback(this,setUIVisibility,true);
+			}
+			
+			private function setUIVisibility():void{
+				if(EHS.properties.editingMode.value){
+					//editHolder.enabled = false;
+					//editHolder.visible = false;
+					//editHolder.includeInLayout = false;
+					yesNoNA.enabled = false;
+					yesNoNA.visible = false;
+					yesNoNA.includeInLayout = false;
+				}else{
+					//editHolder.enabled = true;
+					//editHolder.visible = true;
+					//editHolder.includeInLayout = true;
+					yesNoNA.enabled = true;
+					yesNoNA.visible = true;
+					yesNoNA.includeInLayout = true;
+				}
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<s:VGroup  left="24" right="24" top="16" bottom="16">
+		<s:Label id="heading" text="{sectiontitle}" fontSize="16" fontWeight="bold"/>
+		<s:Spacer/>
+		
+		<s:Label id="yesNoNA" text="Yes  No   NA" fontSize="12"/>
+		<!--<ui1:LinkableHashmapList  width="100%" id="controller"  />-->
+		<tool:VizList width="100%" id="controller"/>
+		
+	</s:VGroup>
+	
+</s:Group>

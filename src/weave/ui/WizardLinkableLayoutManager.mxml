@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 implements="weave.api.ui.ILinkableLayoutManager,weave.api.core.IDisposableObject"
+		 minHeight="0" height="100%" width="100%">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.core.IVisualElement;
+			
+			import weave.api.getCallbackCollection;
+			import weave.api.newLinkableChild;
+			import weave.api.core.IDisposableObject;
+			import weave.api.ui.ILinkableLayoutManager;
+			import weave.compiler.StandardLib;
+			import weave.core.LinkableString;
+			import weave.core.LinkableWatcher;
+			
+			private var _idToComponent:Object = {}; // String -> IVisualElement
+			private var _componentToId:Dictionary = new Dictionary(true); // IVisualElement -> String
+			
+			private const _selectedItemWatcher:LinkableWatcher = newLinkableChild(this, LinkableWatcher, changeSection, true);
+		
+			public var orderedIDs:ArrayCollection = new ArrayCollection();
+			private var _activeSectionUI:IVisualElement;
+			
+			
+			
+			
+			/**
+			 * Adds a component to the layout.
+			 * @param id A unique identifier for the component.
+			 * @param component The component to add to the layout.
+			 */		
+			public function addComponent(id:String, component:IVisualElement):void
+			{
+				if (!id)
+					throw new Error("id cannot be null or empty String");
+				if (_idToComponent[id] != component)
+				{
+					if (_idToComponent[id])
+						throw new Error("id already exists: " + id);
+					_idToComponent[id] = component;
+					_componentToId[component] = id;
+					orderedIDs.addItem(id);
+					
+					getCallbackCollection(this).triggerCallbacks();
+				}
+			}
+			
+			/**
+			 * Removes a component from the layout.
+			 * @param id The id of the component to remove.
+			 */
+			public function removeComponent(id:String):void
+			{
+				var component:IVisualElement = _idToComponent[id] as IVisualElement;
+				if (component)
+				{
+					delete _idToComponent[id];
+					delete _componentToId[component];
+					orderedIDs.removeItem(id);
+					getCallbackCollection(this).triggerCallbacks();
+				}
+			}
+			
+			
+			/**
+			 * Reorders the components. 
+			 * @param orderedIds An ordered list of ids.
+			 */
+			public function setComponentOrder(orderedIds:Array):void
+			{
+				// do nothing if order didn't change
+				if (StandardLib.compare(orderedIds, getComponentOrder()) == 0)
+					return;
+				
+				getCallbackCollection(this).delayCallbacks();
+				var childIndex:int = 0;
+				for each (var id:String in orderedIds)
+				{
+					var newIndex:int = childIndex++;
+					orderedIDs.setItemAt(id,newIndex);
+					getCallbackCollection(this).triggerCallbacks();
+				}
+				//_currentOrder = orderedIds;
+				getCallbackCollection(this).resumeCallbacks();
+			}
+			
+			//private var _currentOrder:Array;
+			/*private function get currentOrder():Array{
+				if(!_currentOrder) _currentOrder = getComponentOrder();
+				return _currentOrder;
+			}*/
+			
+			/**
+			 * This is an ordered list of ids in the layout.
+			 */		
+			public function getComponentOrder():Array
+			{
+				var result:Array = [];
+				for (var index:int = 0; index < orderedIDs.length; index++)
+				{
+					var componentID:String = orderedIDs.getItemAt(index) as String;					
+					if (componentID)
+						result.push(componentID);
+				}
+				//_currentOrder = result;
+				return result;
+			}
+			
+			
+			/**
+			 * This function can be used to check if a component still exists in the layout.
+			 */		
+			public function hasComponent(id:String):Boolean
+			{
+				return _idToComponent[id] is IVisualElement;
+			}
+			
+			/**
+			 * This is called when the object is disposed.
+			 */
+			public function dispose():void
+			{
+				getCallbackCollection(this).delayCallbacks();				
+				for each (var id:String in getComponentOrder())
+					removeComponent(id);
+				
+				getCallbackCollection(this).resumeCallbacks();
+			}
+			
+			
+			public function set activeSection(value:LinkableString):void
+			{
+				_selectedItemWatcher.target = value;
+				
+			}
+			
+			private var currentSectionIndex:int = -1;
+			
+			private function changeSection():void{
+				var ls:LinkableString = _selectedItemWatcher.target as LinkableString;
+				if(ls && ls.value){
+					var ui:IVisualElement = _idToComponent[ls.value] as IVisualElement;
+					if(_activeSectionUI && formSection.containsElement(_activeSectionUI)){
+						formSection.removeElement(_activeSectionUI);
+					}
+					formSection.addElement(ui);
+					_activeSectionUI = ui;
+					
+					
+					for(var i:int = 0; i < orderedIDs.length; i++){
+						if(orderedIDs[i] == ls.value){
+							currentSectionIndex = i;
+							break;
+						}
+					}
+					
+					if(currentSectionIndex >= 0 && currentSectionIndex <= orderedIDs.length){
+						backBtn.visible = nextBtn.visible = true;
+						if (currentSectionIndex == orderedIDs.length){
+							nextBtn.visible = false;
+						}else if(currentSectionIndex == 0){
+							backBtn.visible = false;
+						}
+					}
+					else{
+						backBtn.visible = nextBtn.visible = false;
+					}
+					
+					
+				}
+			}
+			
+			protected function wizardBtn_clickHandler(event:MouseEvent):void
+			{
+				var newSelectionIndex:int;
+				if(currentSectionIndex > -1){
+					if(event.target == backBtn){
+						newSelectionIndex = currentSectionIndex - 1;
+						
+					}else if(event.target == nextBtn){
+						newSelectionIndex = currentSectionIndex + 1;
+					}
+				}
+				
+				if(newSelectionIndex >= 0 && newSelectionIndex <= orderedIDs.length){
+					var ls:LinkableString = _selectedItemWatcher.target as LinkableString;
+					ls.value = orderedIDs[newSelectionIndex];
+				}
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Group  width="100%" height="100%" id="viewArea" >				
+		<s:Rect left="0" right="0" top="0" bottom="0">
+			<s:fill><s:SolidColor id="bgFill" color="0x202425" /></s:fill>					
+		</s:Rect>
+		<s:Scroller left="8" right="4" top="4" bottom="4" verticalScrollPolicy="auto" 
+					horizontalScrollPolicy="auto" >
+			<s:Group id="formSection"  width="100%" height="100%" minWidth="0" minHeight="0" >
+				
+				
+			</s:Group>
+		</s:Scroller>
+	</s:Group>
+	<s:Group width="100%" id="wizardMode" height="40" >
+		<s:Rect  left="0" right="0" top="0" bottom="0">
+			<s:fill>
+				<s:LinearGradient rotation="90">
+					<!--<s:GradientEntry color="0XB9B9B9" />-->
+					<s:GradientEntry color="0XE3E3E3" />
+					<s:GradientEntry color="0XB9B9a6" />
+				</s:LinearGradient>
+			</s:fill>
+		</s:Rect>
+		<s:HGroup  left="16" right="16" top="2" bottom="2" verticalAlign="middle" >
+			<s:Button  id="backBtn" label="Back" fontSize="16" fontWeight="bold" click="wizardBtn_clickHandler(event)" />
+			<s:Spacer width="100%"/>
+			<s:Button id="nextBtn" label="Next" fontSize="16" fontWeight="bold" click="wizardBtn_clickHandler(event)"/>
+		</s:HGroup>
+		
+	</s:Group>
+	
+</s:VGroup>

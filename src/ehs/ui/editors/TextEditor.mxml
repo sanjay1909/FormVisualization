@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Callout xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:ui="weave.ui.*"  implements="ehs.ui.editors.ITextEditor" >
+	<fx:Script>
+		<![CDATA[
+			import ehs.ui.InspectionDataUI;
+			
+			import weave.api.linkBindableProperty;
+			import weave.api.registerLinkableChild;
+			import weave.api.unlinkBindableProperty;
+			import weave.core.LinkableWatcher;
+			
+			private const dynamicTextFormatWatcher:LinkableWatcher = registerLinkableChild(this,new LinkableWatcher(InspectionDataUI));
+			public function pinLinkableDataUI(dataUI:InspectionDataUI):void{
+			    var insDataUi:InspectionDataUI = dynamicTextFormatWatcher.target as InspectionDataUI;
+				if(insDataUi){
+					unlinkBindableProperty(insDataUi.inspectionData.question,question,"text");
+				}
+				dynamicTextFormatWatcher.target = dataUI;
+				checklistFontControl.setTarget(dataUI.textFormat);
+				linkBindableProperty(dataUI.inspectionData.question,question,"text");
+			}
+			
+			
+			
+		]]>
+	</fx:Script>
+	<s:Form textAlign="right">
+		<s:layout>
+			<s:FormLayout gap="-10"/>
+		</s:layout>
+		<s:FormItem label="{lang('Question:')}">
+			<s:TextInput textAlign="left" id="question" width="100%"/>
+		</s:FormItem>
+		<s:FormItem label="{lang('Checklist font:')}">
+			<ui:FontControl id="checklistFontControl"  />	
+		</s:FormItem>
+		
+	</s:Form>
+	
+</s:Callout>

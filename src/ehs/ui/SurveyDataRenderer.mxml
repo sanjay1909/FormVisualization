@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				xmlns:ui="ehs.ui.*" width="100%" height="100%" 
+				implements="weave.api.core.ILinkableObject"
+				>
+	<s:filters/>
+	<!--<s:Rect left="0" right="0" top="0" bottom="0">
+	<s:fill>
+	<s:SolidColor  color="0xff0000"/>
+	</s:fill>
+	</s:Rect>-->
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponentDescriptor;
+			import mx.utils.ObjectUtil;
+			
+			import spark.components.Label;
+			
+			import ehs.EHS;
+			import ehs.data.InspectionData;
+			
+			import print.IServerManager;
+			import print.ServerManager;
+			
+			import weave.api.getCallbackCollection;
+			import weave.api.newLinkableChild;
+			import weave.api.registerLinkableChild;
+			import weave.api.core.ILinkableObject;
+			import weave.api.data.IQualifiedKey;
+			import weave.core.LinkableBoolean;
+			import weave.core.LinkableHashMap;
+			import weave.core.LinkableWatcher;
+			import weave.core.SessionManager;
+			import weave.core.UntypedLinkableVariable;
+			import weave.utils.LinkableTextFormat;
+			
+			
+			public const textFormat:LinkableTextFormat = registerLinkableChild(this, new LinkableTextFormat());
+			
+			
+			[Bindable]
+			public var questionNumber:int;
+			
+			//public const uiData:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Object),fillUi);
+			
+			
+			public var sectionName:String = "";
+			
+			private var _constructorCalled:Boolean = false; // true when constructor has been called
+			/**
+			 *  This method is called when a UIComponent is constructed,
+			 *  and again whenever the ResourceManager dispatches
+			 *  a <code>"change"</code> Event to indicate
+			 *  that the localized resources have changed in some way.
+			 */
+			override protected function resourcesChanged():void
+			{
+				super.resourcesChanged();
+				if (!_constructorCalled) // avoid calling constructor twice
+				{
+					_constructorCalled = true;
+					constructor();
+				}
+			}
+			
+			/**
+			 * A constructor cannot be defined in MXML.
+			 * This function gets called as a result of calling the super class's constructor.
+			 * Classes that extend DraggablePanel can override this and call super.constructor().
+			 * Any code that should execute in the constructor can be put into this function.
+			 * This function should not be called directly.
+			 */
+			protected function constructor():void
+			{				
+				getCallbackCollection(EHS.properties.sectionSettings.checklistTextFormat).addImmediateCallback(this,changeFontProperties);
+				//EHS.properties.editingMode.addGroupedCallback(this,handleEditing,true);
+				_editWatcher.target = EHS.properties.editingMode;
+			}
+			
+			
+			private const _editWatcher:LinkableWatcher = newLinkableChild(this, LinkableWatcher, handleEditing, true);
+			public function get editable():LinkableBoolean
+			{
+				return _editWatcher.target as LinkableBoolean;
+			}
+			
+			public function set editable(value:LinkableBoolean):void
+			{
+				_editWatcher.target = value;
+			}
+			
+			private function handleEditing():void{
+				if(EHS.properties.editingMode.value){
+					inspectionMode.includeInLayout = false;
+					inspectionMode.enabled = false;
+					inspectionMode.visible = false;
+					
+					
+					editMode.includeInLayout = true;
+					editMode.enabled = true;
+					editMode.visible = true;
+					
+					
+				}else{
+					editMode.includeInLayout = false;
+					editMode.enabled = false;
+					editMode.visible = false;
+					
+					
+					inspectionMode.enabled = true;
+					inspectionMode.visible = true;
+					inspectionMode.includeInLayout = true;
+					
+				}
+			}
+			
+			
+			
+			
+			private var serMan:ServerManager = WeaveAPI.ClassRegistry.getSingletonInstance(IServerManager);
+			override public function set data(value:Object):void
+			{
+				
+				if(data == value ){
+					if(ObjectUtil.compare(data,value))	return;
+				}
+				super.data = value;
+				if(value){
+					//linkBindableProperty(_question,question,'text');
+					//_question.addGroupedCallback(this,updatePoperty);
+					fields = data as UntypedLinkableVariable;
+					var uiComp:UIComponentDescriptor = new UIComponentDescriptor(fields.value['descriptor']);
+					//fields.addGroupedCallback(this,updateUI,true);
+					//fields.addImmediateCallback(this,testFunc,false,true);
+					//serMan.linkBindableProperty(fields,'question', question,'text');
+					}
+				else{
+					//_question.removeCallback(updatePoperty);
+					//unlinkBindableProperty(_question,question,'text');
+					//fields.removeCallback(updateUI);
+					//serMan.unlinkBindableProperty(fields,'question', question,'text');
+				}
+			}
+			
+			
+			
+			private function testFunc():void{
+				//trace(fields._lastTriggerStackTrace);
+				var qkey:IQualifiedKey = fields['QKey'][0];
+				trace(qkey);
+				
+			}
+			
+			
+			
+			
+			
+			private var fields:UntypedLinkableVariable;
+			
+			/**
+			 * Sets a value in the properties session state.
+			 */
+			public function setField(name:String, value:Object):void
+			{
+				var state:Object = Object(ObjectUtil.copy(fields.value));
+				state[name] = value;
+				fields.value = state;
+			}
+			
+			
+			
+			
+			private function changeFontProperties():void{
+				EHS.properties.sectionSettings.checklistTextFormat.copyToStyle(question as Label);
+				EHS.properties.sectionSettings.checklistTextFormat.copyToStyle(questNumber as Label);
+			}
+			
+			protected function rb_clickHandler(event:MouseEvent):void
+			{
+				/*var ui:FormDataCallout = EHS.properties.formCallout;
+				if(event.target == noRB){
+					ui.load(data as InspectionData);
+				}
+				else{
+					ui.load(null);
+				}*/
+				
+			}
+			
+			private function remove():void
+			{
+				var sm:SessionManager = WeaveAPI.SessionManager as SessionManager;
+				var datas:LinkableHashMap = sm.getLinkableOwner(data as InspectionData) as LinkableHashMap;
+				var name:String = datas.getName(data as InspectionData);
+				datas.removeObject(name);
+			}
+			
+			
+			//private const _question:LinkableString = newDisposableChild(this,LinkableString);
+			
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:RadioButtonGroup id="rbg"     />
+	</fx:Declarations>
+	
+	<s:HGroup   id="inspectionMode"  verticalAlign="middle" gap="12" >		
+		<!--<s:RadioButton group="{rbg}" id="yesRB" value="yes"   skinClass="ehs.ui.skins.EHSRadioButtonSkin" click="rb_clickHandler(event)"  />
+		<s:RadioButton group="{rbg}" id="noRB" value="no"    skinClass="ehs.ui.skins.EHSRadioButtonSkin" click="rb_clickHandler(event)"    />
+		<s:RadioButton group="{rbg}" id="naRB"  value="NA" skinClass="ehs.ui.skins.EHSRadioButtonSkin"  click="rb_clickHandler(event)" />-->
+		<s:Label id="questNumber" text="{String(itemIndex + 1)}. " fontSize="14"/>
+		<s:Label id="question"  fontSize="14" />
+	</s:HGroup>
+	
+	
+	
+	<s:VGroup width="100%"  gap="12" id="editMode"  verticalAlign="middle">		
+		<s:HGroup width="100%">
+			<s:Button label="x" width="32" click="remove();"/>
+			<s:Label  text="{String(itemIndex + 1)}. " fontSize="14"/>
+			<s:VGroup gap="12" width="100%"  verticalAlign="middle">
+				<s:RichEditableText id="questionEdit" fontSize="14" width="100%"/>
+				<s:Label id="commentEdit"  fontSize="14" width="100%"/>	
+			</s:VGroup>
+		</s:HGroup>	
+		
+	</s:VGroup>
+	
+	
+	
+	
+	
+	
+	
+	
+</s:ItemRenderer>

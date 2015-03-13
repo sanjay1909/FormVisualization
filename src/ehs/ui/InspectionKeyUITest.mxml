@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx"  width="100%" 
+				 implements="weave.api.core.ILinkableObject" xmlns:ui="ehs.ui.*" 
+				xmlns:components="org.flashcommander.components.*"  >
+	<s:Rect left="4" right="4" top="4" bottom="4">
+		<s:fill>
+			<s:SolidColor color="0xffffff"/>
+		</s:fill>	
+		
+	</s:Rect>
+	
+	<s:Form textAlign="right" fontSize="14" width="100%" height="100%" >
+		<s:layout>
+			<s:FormLayout gap="-10" />
+		</s:layout>
+		<s:FormItem label="Building">
+			<components:AutoComplete id="ac1"  
+									 dataProvider="['Olney Hall','Olsen Hall','Ball Hall','Kitson Hall','Falmouth Hall','Perry Hall','Pinanski Hall','Ames Building','Wannalancit Mills','Health and Social Sciences Building','ETIC','Dugan Hall','McGauvran Student Union','Weed Hall']"   
+									 requireSelection="true" forceOpen="true" creationComplete="linkBindableProperty(keyData.building,event.target,'text')"/>              
+			<!--<ui:TextInputWithValidation  creationComplete="linkBindableProperty(keyData.building,event.target,'text')"/>-->			
+		</s:FormItem>
+		<s:FormItem label="Room">
+			<ui:TextInputWithValidation  creationComplete="linkBindableProperty(keyData.roomNumbers,event.target,'text')"/>			
+		</s:FormItem>
+		<s:FormItem label="Principal Investigator">
+			<ui:TextInputWithValidation  creationComplete="linkBindableProperty(keyData.principalInvestigator,event.target,'text')"/>			
+		</s:FormItem>
+		<s:FormItem label="Date">
+			<mx:DateField creationComplete="linkBindableProperty(keyData.inspectionDate,event.target,'selectedDate')"/>					
+		</s:FormItem>
+		<s:FormItem label="Department">
+			<ui:TextInputWithValidation  creationComplete="linkBindableProperty(keyData.dept,event.target,'text')"/>			
+		</s:FormItem>
+		<s:FormItem label="Primary Function">
+			<s:VGroup id="primFuncHolder">
+				<s:CheckBox label="Academic" creationComplete="linkBindableProperty(isAcademic,event.target,'selected')"/>
+				<s:CheckBox label="Research" creationComplete="linkBindableProperty(isResearch,event.target,'selected')"/>
+				<s:CheckBox label="Services" creationComplete="linkBindableProperty(isServices,event.target,'selected')"/>		
+			</s:VGroup>		
+		</s:FormItem>
+		<s:FormItem label="Inspector">
+			<components:AutoComplete id="ac2" 
+									 dataProvider="['Glenn MacDonald','Kathi Lyon','Medina Ruth','Sanjay Krishna']"   
+									 requireSelection="true" forceOpen="true" creationComplete="linkBindableProperty(keyData.inspector,event.target,'text')"/>  
+			<!--<ui:TextInputWithValidation  creationComplete="linkBindableProperty(keyData.inspector,event.target,'text')"/>-->			
+		</s:FormItem>
+		
+	</s:Form>
+	
+	
+	<fx:Script>
+		<![CDATA[
+			import ehs.data.InspectionKeyData;
+			
+			import weave.api.linkBindableProperty;
+			import weave.api.newLinkableChild;
+			import weave.api.registerLinkableChild;
+			import weave.core.LinkableBoolean;
+			
+			private var _constructorCalled:Boolean = false; // true when constructor has been called
+			override protected function resourcesChanged():void
+			{
+				super.resourcesChanged();
+				if (!_constructorCalled) // avoid calling constructor twice
+				{
+					_constructorCalled = true;
+					constructor();
+				}
+			}
+			
+			/**
+			 * A constructor cannot be defined in MXML.
+			 * This function gets called as a result of calling the super class's constructor.
+			 * Classes that extend DraggablePanel can override this and call super.constructor().
+			 * Any code that should execute in the constructor can be put into this function.
+			 * This function should not be called directly.
+			 */
+			protected function constructor():void
+			{
+				
+				
+			}
+			
+			override protected function childrenCreated():void{
+				super.childrenCreated();
+			}
+			
+			
+			public var pageNumber:int;
+			
+			public const keyData:InspectionKeyData = newLinkableChild(this,InspectionKeyData);
+				
+			public const isAcademic:LinkableBoolean = registerLinkableChild(this,new LinkableBoolean(false),updatePrimaryFunction);
+			public const isResearch:LinkableBoolean = registerLinkableChild(this,new LinkableBoolean(false),updatePrimaryFunction);
+			public const isServices:LinkableBoolean = registerLinkableChild(this,new LinkableBoolean(false),updatePrimaryFunction);
+			
+			
+			private function updatePrimaryFunction():void{
+				var arr:Array = new Array();
+				if(isAcademic.value)arr.push("Academic");
+				if(isResearch.value)arr.push("Research");
+				if(isServices.value)arr.push("Services");
+				keyData.primaryFunction.setSessionState(arr);				
+			}
+			
+		
+			
+			
+			
+			
+			
+		]]>
+	</fx:Script>
+	
+</s:Group>

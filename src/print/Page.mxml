@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:print="print.*"
+		 implements="weave.api.core.ILinkableObject"
+		 width="612" height="792"
+		 borderColor="#ff0000">
+	<s:layout >
+		<s:VerticalLayout id="layout" />
+	</s:layout>
+	
+	<fx:Script>
+		<![CDATA[
+			import weave.api.linkBindableProperty;
+			import weave.api.newLinkableChild;
+			import weave.api.registerLinkableChild;
+			import weave.api.core.ILinkableObject;
+			import weave.core.LinkableNumber;
+			
+			public const contents:PageManager = newLinkableChild(this, PageManager);
+			
+			// Will contain TargetPath from GlobalHasMap
+			// If the targetPath Object is not an UI then based on it UI will be provided for That
+			//public const contents:LinkableHashMap = registerLinkableChild(this,new LinkableHashMap());
+			
+			public const leftMargin:LinkableNumber = registerLinkableChild(this, new LinkableNumber(54));
+			public const rightMargin:LinkableNumber = registerLinkableChild(this, new LinkableNumber(54));
+			public const topMargin:LinkableNumber = registerLinkableChild(this, new LinkableNumber(54));
+			public const bottomMargin:LinkableNumber = registerLinkableChild(this, new LinkableNumber(54));
+			
+			override protected function createChildren():void{
+				super.createChildren();
+				linkBindableProperty(leftMargin,layout,'paddingLeft');
+				linkBindableProperty(rightMargin,layout,'paddingRight');
+				linkBindableProperty(topMargin,layout,'paddingTop');
+				linkBindableProperty(bottomMargin,layout,'paddingBottom');
+				contents.contents.childListCallbacks.addGroupedCallback(this,addContent);
+				
+				
+			}
+			
+			private function addContent():void{
+				if(contents.contents.childListCallbacks.lastObjectAdded){
+					trace("need to fugure out what to do - after adding to UI");
+					
+				}
+			}
+			
+			// Layout 
+			// BorderContainer  with Layout Option Sessioned - Horizaontal or Vertical - form or Tile - form tile
+			//             For Horizaontallayou
+			//Spacer
+			// if its Datagroup - itemrenders again sessionedObject
+			
+			//try WeaveTreeNode - to define layout and render contents based on tree
+			
+			
+		]]>
+	</fx:Script>
+	
+</s:BorderContainer>

@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<print:Page xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ui="ehs.ui.*"
+		 implements="weave.api.core.ILinkableObject"
+		 creationComplete="group1_creationCompleteHandler(event)" xmlns:print="print.*"  >
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			
+			import ehs.EHS;
+			import ehs.ui.editors.DataGroupEditor;
+			
+			import weave.api.linkBindableProperty;
+			
+			private var pm:ServerManager =  WeaveAPI.ClassRegistry.getSingletonInstance(IServerManager) as ServerManager;
+			private var keyMap:Array;
+			
+			
+			
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				 keyMap = pm.keyData.getDataAsObjectArray();	
+				 contentHolder.dataProvider = new ArrayCollection(keyMap);
+				
+			}
+			
+			/*private function verifyPath(path:Array):Boolean
+			{
+				return !path || StandardLib.getArrayType(path) == String;
+			} 
+			public const targetPath:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array, verifyPath), handlePath);
+			private const watcher:LinkableWatcher = registerDisposableChild(this, new LinkableWatcher());
+			
+			private function handlePath():void
+			{
+				watcher.targetPath = targetPath.getSessionState() as Array;
+				
+				
+			}*/
+			
+			/*public const verticalGap:LinkableNumber = registerLinkableChild(this, new LinkableNumber(6));
+			public const horizontalGap:LinkableNumber = registerLinkableChild(this, new LinkableNumber(6));
+			public const columnCount:LinkableNumber = registerLinkableChild(this, new LinkableNumber(2));
+			public const rowCount:LinkableNumber = registerLinkableChild(this, new LinkableNumber(2));*/
+			
+			
+			protected function contentHolder_creationCompleteHandler(event:FlexEvent):void
+			{
+				
+				linkBindableProperty(EHS.properties.columnCount,formTileLayout,'requestedColumnCount');
+				linkBindableProperty(EHS.properties.verticalGap,formTileLayout,'verticalGap');
+				linkBindableProperty(EHS.properties.horizontalGap,formTileLayout,'horizontalGap');
+			}
+			
+			protected function contentHolder_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				DataGroupEditor.openTool();
+				//DataGroupEditor.instance.bind(verticalGap,horizontalGap,columnCount);
+			}
+			
+		]]>
+	</fx:Script>
+	<s:DataGroup id="contentHolder"  width="100%" creationComplete="contentHolder_creationCompleteHandler(event)" click="contentHolder_clickHandler(event)">
+		<s:layout>
+			<ui:FormTileLayout id="formTileLayout"   />
+			<!--<s:TileLayout/>-->
+		</s:layout>
+		<s:itemRenderer>
+			<fx:Component>
+				<!--<s:ItemRenderer>
+					<s:FormItem label="{data.property}">
+						<s:Label text="{data.value}"/>
+					</s:FormItem>
+				</s:ItemRenderer>-->
+				<ui:FormItemRenderer label="{data.property}">
+					<fx:Script>
+						<![CDATA[
+							import mx.events.FlexEvent;
+							
+							import ehs.EHSUtils;
+							
+							import weave.api.linkBindableProperty;
+							import weave.core.LinkableString;
+							import weave.core.LinkableVariable;
+							
+							protected function label1_creationCompleteHandler(event:FlexEvent):void
+							{
+								var lbl:Label = event.currentTarget as Label;
+								var lv:LinkableVariable = data.value;
+								if(lv is LinkableString)
+									linkBindableProperty(data.value,lbl,'text');
+								else if(lv is LinkableVariable){									
+									var obj:Object = lv.getSessionState();
+									if(obj is Array)
+										lbl.text = (obj as Array).join(",");
+									else if (obj is Date)
+										lbl.text = EHSUtils.formatDate(obj as Date);
+								}
+							}
+							
+							
+						]]>
+					</fx:Script>
+					<s:Label  creationComplete="label1_creationCompleteHandler(event)"/>
+				</ui:FormItemRenderer>
+					
+			</fx:Component>
+		</s:itemRenderer>
+	</s:DataGroup>
+	
+</print:Page>

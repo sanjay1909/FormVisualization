@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="300" height="200"
+		 xmlns:ui="weave.ui.*"
+		 xmlns="weave.ui.admin.*"
+		 title="Login"		 
+		 creationComplete="onCreationComplete()">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.rpc.AsyncToken;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.components.Alert;
+			
+			import ehs.EHS;
+			
+			import print.IServerManager;
+			import print.ServerManager;
+			
+			import weave.Weave;
+			import weave.api.reportError;
+			import weave.services.addAsyncResponder;
+			
+			/**
+			 * This function gets called when this panel is shown.
+			 */
+			private function onCreationComplete():void
+			{
+				callLater(username.setFocus);
+				//Fix to set cursor in Text Input. Though the focus is set to the password inout box the cursor is not set it till 
+				//you click anywhere in the flash application. This is because when the browser loads the page the flash object is not selected.
+				//We force the selection by passing the flash dom object to javascript and explicitly set the focus.
+				//Does not work in Chrome
+				JavaScript.exec('this.tabIndex = 0; this.focus();');
+			}			
+			
+			private function login():void
+			{
+				if (!username.text && !password.text)
+					return;
+				
+				// disable while authenticating
+				enabled = false;
+				
+				// authenticate with server
+				addAsyncResponder(EHS.properties.service.login(username.text, password.text), handleResult, handleFault);
+				function handleResult(event:ResultEvent,token:AsyncToken = null):void
+				{
+					enabled = true;
+					password.text = '';
+					
+					var pm:ServerManager =  WeaveAPI.ClassRegistry.getSingletonInstance(IServerManager) as ServerManager;
+					var userRecordObj:* = event.result as Object;
+					pm.inspectorInfo.email.value = userRecordObj['email'];
+					pm.inspectorInfo.firstName.value = userRecordObj['firstName'];
+					pm.inspectorInfo.lastName.value = userRecordObj['lastName'];
+					pm.inspectorInfo.position.value = userRecordObj['position'];
+					pm.inspectorInfo.privilege.value = userRecordObj['privilege'];
+					pm.inspectorInfo.qualification.value = userRecordObj['qualification'];					
+					pm.inspectorInfo.user.value = userRecordObj['user'];
+					pm.inspectorInfo.templatePath.value = userRecordObj['templatePath'];
+					// when we log out - we clear evrything, 
+					// when we log out we need to ask for saving
+					Weave.history.clearHistory();
+				}
+				function handleFault(event:FaultEvent,token:AsyncToken = null):void
+				{
+					enabled = true;
+					//Alert.show("Login Failed");
+					reportError(event.fault);
+					password.text = '';
+					username.text = '';
+				}
+			}
+			
+		]]>
+	</fx:Script>
+		
+		<s:Form id="loginForm" height="100%" width="100%">
+			<s:FormItem label="Username:">
+				<s:TextInput id="username"/>
+			</s:FormItem>
+			<s:FormItem label="Password:">
+				<s:TextInput id="password"  displayAsPassword="true"/>
+			</s:FormItem>
+		</s:Form>
+		<s:controlBarContent>
+			<s:Spacer width="100%"/>
+			<s:Button label="Login" id="loginButton"
+					  enabled="{(username.text.length == 0 || password.text.length == 0) ? false : true}"
+					  toolTip="{loginButton.enabled == true ? 'Click to submit' : 'Enter username and password'}" 
+					  click="login()" 
+					  keyDown="if (event.keyCode == Keyboard.ENTER) login()"/>
+		</s:controlBarContent>
+	
+</s:Panel>

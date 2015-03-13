@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%" height="100%"  >
+	<s:Panel id="filterHolder" title="Filter Controls" dropShadowVisible="false">
+		<s:layout>
+			<s:VerticalLayout paddingLeft="8" paddingRight="8" paddingTop="8" paddingBottom="8"/>
+		</s:layout>
+	</s:Panel>
+	<fx:Script>
+		<![CDATA[
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			
+			import spark.components.DataGrid;
+			import spark.components.gridClasses.GridColumn;
+			import spark.events.GridSelectionEvent;
+			
+			import ehs.EHS;
+			import ehs.services.beans.LabSafetyRecord;
+			
+			
+			
+			
+			
+			
+			
+			/*private function sendFormToWebApp(formAsXML:XML):void{
+				
+				localConn.send("FormAsXMLFromDataBase","openLabSafetyFormFromDatabase",formAsXML);
+			}*/
+			
+			
+			
+			protected function showFormInEHSAppUI(event:Event):void{
+				if(!resultDataGrid.selectedItem){
+					Alert.show("Select an Item to See the Form");
+					return;
+				}	
+				
+				var recObject:LabSafetyRecord = resultDataGrid.selectedItem as LabSafetyRecord;
+				
+				EHS.properties.openWeavePopup(recObject.filePath);
+				/*var formAsXml:XML = new XML(recObject.formXML);
+				sendFormToWebApp(formAsXml);*/
+			}
+						
+			/*protected function showPDFClickHandler(event:Event):void
+			{
+				if(!resultDataGrid.selectedItem){
+					Alert.show("Select an Item to open the PDF");
+					return;
+				}
+				var recObject:Record = resultDataGrid.selectedItem as Record;
+				
+				var decoder:Base64Decoder = new Base64Decoder();
+				decoder.decode(recObject.pdf as String);				
+				var decodedByteArr:ByteArray = decoder.toByteArray();
+				
+				var url:String = PrintProperties.pdfServiceUrl;
+				var fileName:String = recObject.building + recObject.department;
+				var header:URLRequestHeader = new URLRequestHeader ("Content-type","application/octet-stream");
+				var myRequest:URLRequest = new URLRequest (url+'?name='+fileName+'&method='+Download.INLINE );
+				myRequest.requestHeaders.push (header);
+				myRequest.method = URLRequestMethod.POST;
+				myRequest.data = decodedByteArr;
+				navigateToURL( myRequest, "_blank" );	
+			}
+			*/
+			protected function showForm():void{
+				
+			}
+			
+			public var resultDataGrid:DataGrid = new DataGrid();	
+			override protected function createChildren():void{
+				
+				this.addElement(resultDataGrid);
+				super.createChildren();				
+				resultDataGrid.percentWidth = 100;
+				resultDataGrid.percentHeight = 100;
+				initDataGrid();
+				resultDataGrid.addEventListener(GridSelectionEvent.SELECTION_CHANGE,showFormInEHSAppUI);
+			}
+			
+			[Bindable]
+			public var dataGridDP:ArrayCollection = new ArrayCollection() ;
+			
+			
+			
+			
+			public const gridColumnDataField:Array = ["building","department","roomNumber","pi","primaryFunction","inspectionDate","status"];
+			public const gridColumnHeaderID:Array = ["Building","Dept.","Room No.","PI","Fucntion","Date","Status"];
+			public const filterEnabledColumns:Array = [true,true,true,true,true,true,true];
+		
+			
+			private function initDataGrid():void{
+				var gridColumns:ArrayList = new ArrayList();
+				for(var i:int = 0 ; i < gridColumnDataField.length; i++){
+					
+					var gridColumn:GridColumn =  new GridColumn();
+					gridColumn.dataField = gridColumnDataField[i];
+					gridColumn.headerText = gridColumnHeaderID[i];
+					gridColumns.addItem(gridColumn);
+					if(filterEnabledColumns[i]){
+						var filterControl:GridColumnFilterControl;
+						
+						if(gridColumnHeaderID[i] == "Date"){
+							filterControl = new GridColumnDateFilter(gridColumn);
+						}
+						else{
+							filterControl = new GridColumnTextFilter(gridColumn);
+						}
+						BindingUtils.bindProperty(filterControl,"searchListCollection",this,"dataGridDP");
+						filterHolder.addElement(filterControl);
+					}
+					
+					
+				}
+				resultDataGrid.columns = gridColumns;
+				BindingUtils.bindProperty(resultDataGrid,"dataProvider",this,"dataGridDP");	
+			}
+			
+			
+			
+			
+			
+		]]>
+	</fx:Script>
+	
+	
+	
+</s:HGroup>

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<print:Page xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:print="print.*" 
+		 xmlns:sessioned="ehs.ui.sessioned.*"
+		 implements="weave.api.core.ILinkableObject"
+		 creationComplete="group1_creationCompleteHandler(event)" 
+		>
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			
+			import ehs.EHS;
+			import ehs.services.beans.UserRecord;
+			
+			import weave.api.linkBindableProperty;
+			import weave.api.core.ILinkableObject;
+			import weave.core.LinkableString;
+			private var pm:ServerManager =  WeaveAPI.ClassRegistry.getSingletonInstance(IServerManager) as ServerManager;
+			
+			private var uiSessionMap:Dictionary = new Dictionary(true);
+			
+			
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				EHS.properties.umassLogo.width = 65;
+				EHS.properties.umassLogo.height = 78;
+				logoHolder.addElement(EHS.properties.umassLogo);
+				var ins:UserRecord = pm.inspectorInfo as UserRecord;;
+				EHS.properties.printerContents.inspector.value =PrinterContents.timesSTART + PrinterContents.boldSTART+ ins.firstName.value +' '+ ins.lastName.value +', ' +ins.qualification.value+ PrinterContents.boldEnd +PrinterContents.timesEND
+					+PrinterContents.timesSTART + PrinterContents.italicSTART +ins.position.value+ PrinterContents.italicEND +PrinterContents.timesEND;
+				
+				
+				if(pm.keyData.isProfessor.value){
+					EHS.properties.printerContents.pi.value = PrinterContents.timesSTART+'Dear '+  'Professor ' + pm.keyData.principalInvestigator.value +',' +  PrinterContents.timesEND;
+				}
+				else{
+					EHS.properties.printerContents.pi.value =  PrinterContents.timesSTART + 'Dear ' +  pm.keyData.principalInvestigator.value +',' + PrinterContents.timesEND;
+				}
+				
+				
+			}
+			
+			protected function text_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var sessionObj:ILinkableObject = uiSessionMap[event.currentTarget];
+				TextEditor.openTool();
+				TextEditor.instance.bind(sessionObj as LinkableString);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:VGroup  width="100%">
+		<s:HGroup  width="100%" >
+			<s:HGroup id="logoHolder" width="40%" horizontalAlign="left"/>
+			<s:VGroup  width="60%" horizontalAlign="right" gap="-4">
+				<mx:Text  width="100%" id="department"  click="text_clickHandler(event)"  creationComplete="linkBindableProperty( EHS.properties.printerContents.department,department,'htmlText');uiSessionMap[department] = EHS.properties.printerContents.department;"/>			
+				<s:HGroup width="100%" gap="8" horizontalAlign="right">
+					<mx:Text id="address" click="text_clickHandler(event)"  creationComplete="linkBindableProperty( EHS.properties.printerContents.address,address,'htmlText');uiSessionMap[address] = EHS.properties.printerContents.address;"/>	
+					<mx:Text id="contact" click="text_clickHandler(event)"  creationComplete="linkBindableProperty( EHS.properties.printerContents.contact,contact,'htmlText');uiSessionMap[contact] = EHS.properties.printerContents.contact;"/>	
+				</s:HGroup>
+			</s:VGroup>			
+		</s:HGroup>
+		<s:Spacer height="12"/>
+		<s:VGroup  width="100%" >
+			
+			<mx:Text width="100%" id="inspector"  click="text_clickHandler(event)" creationComplete="linkBindableProperty( EHS.properties.printerContents.inspector,inspector,'htmlText');uiSessionMap[inspector] = EHS.properties.printerContents.inspector;"/>
+			<s:Spacer height="12"/>
+			<mx:Text width="100%" id="pi" click="text_clickHandler(event)"  creationComplete="linkBindableProperty( EHS.properties.printerContents.pi,pi,'htmlText');uiSessionMap[pi] = EHS.properties.printerContents.pi;"/>
+			<mx:Text width="100%" id="para" click="text_clickHandler(event)"  creationComplete="linkBindableProperty( EHS.properties.printerContents.para,para,'htmlText');uiSessionMap[para] = EHS.properties.printerContents.para;"/>
+			<s:Spacer height="12"/>
+			<mx:Text width="100%" id="greeting" click="text_clickHandler(event)"  creationComplete="linkBindableProperty( EHS.properties.printerContents.greeting,greeting,'htmlText');uiSessionMap[greeting] = EHS.properties.printerContents.greeting;"/>			
+		</s:VGroup>
+	</s:VGroup>
+	
+</print:Page>

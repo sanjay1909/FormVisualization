@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 implements="weave.api.core.ILinkableObject" >
+	<fx:Script>
+		<![CDATA[
+			import weave.api.linkBindableProperty;
+			import weave.api.registerDisposableChild;
+			import weave.api.registerLinkableChild;
+			import weave.api.core.ILinkableVariable;
+			import weave.compiler.StandardLib;
+			import weave.core.LinkableString;
+			import weave.core.LinkableVariable;
+			import weave.core.LinkableWatcher;
+			
+			public function bind(text:LinkableString):void{
+				
+				var path:Array = WeaveAPI.SessionManager.getPath(WeaveAPI.globalHashMap, text);
+				targetPath.setSessionState(path);
+			}
+			
+			private function verifyPath(path:Array):Boolean
+			{
+				return !path || StandardLib.getArrayType(path) == String;
+			} 
+			
+			
+			public const targetPath:LinkableVariable = registerLinkableChild(this, new LinkableVariable(Array, verifyPath), handlePath);
+			private const watcher:LinkableWatcher = registerDisposableChild(this, new LinkableWatcher());
+			
+			
+			private function handlePath():void
+			{
+				watcher.targetPath = targetPath.getSessionState() as Array;
+				linkBindableProperty(watcher.target as ILinkableVariable,editor,'htmlText');
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<mx:Text id="editor"  width="100%"/>
+	
+</s:Group>

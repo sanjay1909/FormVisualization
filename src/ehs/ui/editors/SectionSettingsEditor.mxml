@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ui="weave.ui.*"
+					label="{lang('Checklist')}" textAlign="right">
+	<s:layout>
+		<s:FormLayout gap="-10"/>
+	</s:layout>
+	
+	<s:FormItem label="{lang('Heading font:')}">
+		<ui:FontControl id="sectionHeadingFontControl" />	
+	</s:FormItem>
+	<s:FormItem label="{lang('Checklist font:')}">
+		<ui:FontControl id="checklistFontControl" />	
+	</s:FormItem>
+	
+	<s:FormItem label="{lang('Background Color')}" >
+		<s:HGroup>
+			<ui:CustomColorPicker id="backgroundColorPicker" change="backgroundColorPicked();"/>
+			<s:Button label="{lang('Reset')}" click="EHS.properties.sectionSettings.backGroundColor.value = 0xffffff;"/>
+		</s:HGroup>		
+	</s:FormItem>
+	
+	
+	
+	
+	
+	
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			
+			import ehs.EHS;
+			import ehs.EHSTool;
+			
+			import weave.api.getCallbackCollection;
+			
+			
+			
+			[Bindable]
+			private var _panel:EHSTool = null;
+			
+			private function labelShowButton(buttonToolTip:String):String{
+				return lang('Show button "{0}"', lang(buttonToolTip));
+			}
+			
+			override protected function createChildren():void{
+				super.createChildren();
+				sectionHeadingFontControl.initialize();
+				checklistFontControl.initialize();
+			}
+			
+			public function set target(panel:EHSTool):void{
+				if (_panel)
+					throw new Error(lang("target should not be set more than once"));				
+				_panel = panel;
+			}
+			
+			override protected function childrenCreated():void
+			{
+				super.childrenCreated();				
+				getCallbackCollection(EHS.properties.sectionSettings).addGroupedCallback(this, sectionSettingsCallback,true);
+				_panel.addEventListener(FlexEvent.UPDATE_COMPLETE, function(..._):void { sectionSettingsCallback(); });
+				
+				sectionHeadingFontControl.fontFamilyCombo.selectedLabel = EHS.properties.sectionSettings.headingTextFormat.font.value;
+				checklistFontControl.fontFamilyCombo.selectedLabel = EHS.properties.sectionSettings.checklistTextFormat.font.value;
+				
+				sectionHeadingFontControl.setTarget(EHS.properties.sectionSettings.headingTextFormat);
+				checklistFontControl.setTarget(EHS.properties.sectionSettings.checklistTextFormat);
+			}
+			
+			private function sectionSettingsCallback():void{
+				if(backgroundColorPicker.selectedColor != EHS.properties.sectionSettings.backGroundColor.value){
+					backgroundColorPicker.selectedColor = EHS.properties.sectionSettings.backGroundColor.value;
+				}
+				
+			}
+			private function backgroundColorPicked():void{
+				EHS.properties.sectionSettings.backGroundColor.value = backgroundColorPicker.selectedColor;
+			}
+			
+			
+			
+		]]>
+	</fx:Script>
+	
+</s:NavigatorContent>
